@@ -1,0 +1,110 @@
+﻿@model IEnumerable<CyberProjekt.Models.ProjectTask>
+
+@{
+    ViewData["Title"] = "Moje zadania";
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="text-white">Moje zadania</h2>
+            <p class="text-muted">@Model.Count() przypisanych zadań</p>
+        </div>
+        <a asp-controller="ProjectTask" asp-action="Create" class="btn btn-primary">+ Dodaj zadanie</a>
+    </div>
+    @{
+        ViewBag.Placeholder = "Szukaj w moich zadaniach...";
+    }
+    @{
+        ViewData["ActionName"] = "MyTasks";
+        ViewBag.Placeholder = "Szukaj zadań...";
+    }
+    <partial name="_SearchForm" />
+
+    @if (Model != null && Model.Any())
+    {
+        <div class="card border-0 shadow-sm overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle mb-0">
+                    @* Nagłówki kolumn wymuszone na biało *@
+                    <thead style="background: #1e293b; color: #ffffff;">
+                        <tr>
+                            <th class="ps-4">
+                                <a asp-action="MyTasks" asp-route-sortOrder="@ViewBag.TitleSort" class="text-white text-decoration-none">
+                                    Zadanie <i class="bi bi-arrow-down-up"></i>
+                                </a>
+                            </th>
+                            <th>
+                                <a asp-action="MyTasks" asp-route-sortOrder="@ViewBag.ProjectSort" class="text-white text-decoration-none">
+                                    Projekt <i class="bi bi-arrow-down-up"></i>
+                                </a>
+                            </th>
+                            <th>Status</th>
+                            <th>Priorytet</th>
+                            <th class="pe-4">
+                                <a asp-action="MyTasks" asp-route-sortOrder="@ViewBag.DateSort" class="text-white text-decoration-none">
+                                    Termin <i class="bi bi-arrow-down-up"></i>
+                                </a>
+                            </th>
+                            <th>Akcje</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var task in Model)
+                        {
+                            var statusColor = GetStatusColor(task.Status);
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center">
+                                        @* Pasek akcentu w kolorze statusu *@
+                                        <div style="width: 4px; height: 24px; background: @statusColor;" class="me-3 rounded"></div>
+                                        <span class="text-white fw-bold">@task.Title</span>
+                                    </div>
+                                </td>
+                                <td>@(task.Project?.Name ?? "Brak")</td>
+                                <td>
+                                    @* Status jako badge *@
+                                    <span class="badge" style="background: @(statusColor + "20");  border: 1px solid @statusColor;">
+                                        @GetDisplayName(task.Status)
+                                    </span>
+                                </td>
+                                <td>
+                                    <partial name="_TaskPriorityBadge" model="task.Priority" />
+                                </td>
+                                <td class="pe-4">@task.Deadline.ToString("dd.MM.yyyy")</td>
+                                <td>
+                                    <a asp-action="Details" asp-route-id="@task.TaskId" class="btn btn-action btn-details"><i class="bi bi-eye"></i> Szczegóły</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card p-4 mt-4 text-center">
+            <h4 class="text-white">Brak zadań</h4>
+            <p class="text-muted">Nie stworzyłeś jeszcze żadnego zadania.</p>
+            <a asp-controller="ProjectTask" asp-action="Create" class="btn btn-primary w-auto mx-auto">Dodaj pierwsze zadanie</a>
+        </div>
+    }
+</div>
+@functions{
+    public string GetDisplayName(Enum value)
+    {
+        var field = value.GetType().GetField(value.ToString());
+        var attribute = (System.ComponentModel.DataAnnotations.DisplayAttribute)
+            Attribute.GetCustomAttribute(field, typeof(System.ComponentModel.DataAnnotations.DisplayAttribute));
+        return attribute != null ? attribute.Name : value.ToString();
+    }
+    public string GetStatusColor(CyberProjekt.Models.TaskStatus status) => status switch
+    {
+        CyberProjekt.Models.TaskStatus.New => "#6366f1",
+        CyberProjekt.Models.TaskStatus.InProgress => "#eab308",
+        CyberProjekt.Models.TaskStatus.InVerification => "#f97316",
+        CyberProjekt.Models.TaskStatus.Done => "#22c55e",
+        _ => "#94a3b8"
+    };
+}

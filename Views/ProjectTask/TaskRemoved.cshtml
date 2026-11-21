@@ -1,0 +1,19 @@
+﻿@{
+    ViewData["Title"] = "Zadanie usunięte";
+}
+
+<div class="container mt-5">
+    <div class="card p-5 border-0 shadow-sm text-center">
+        <div class="mb-4">
+            <i class="bi bi-trash text-danger" style="font-size: 4rem;"></i>
+        </div>
+        <h2 class="text-white">Zadanie zostało usunięte</h2>
+        <p class="text-muted">Nie można wyświetlić szczegółów, ponieważ to zadanie zostało usunięte z systemu.</p>
+
+        <div class="mt-4">
+            <a asp-controller="ProjectTask" asp-action="Index" class="btn btn-primary">
+                Wróć do listy zadań
+            </a>
+        </div>
+    </div>
+</div>

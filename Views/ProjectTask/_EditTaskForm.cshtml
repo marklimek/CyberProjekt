@@ -1,0 +1,310 @@
+﻿@model CyberProjekt.Models.ViewModels.TaskDetailsViewModel
+@using CyberProjekt.Models
+@using System.Security.Claims
+
+
+@{
+    var isAdmin = User.IsInRole("Admin");
+    var isAuthor = Model.Task.CreatorId == User.FindFirstValue(ClaimTypes.NameIdentifier);
+    var isAssigned = Model.Task.AssignedUserId == User.FindFirstValue(ClaimTypes.NameIdentifier);
+    bool canEditEverything = isAdmin || isAuthor;
+    bool canEditExecution = isAdmin || isAuthor || isAssigned;
+    var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+    var statusColor = TaskHelpers.GetStatusColor(Model.Task.Status);
+
+}
+<form asp-controller="ProjectTask" asp-action="InlineEdit" method="post" id="inlineEditForm">
+    <input type="hidden" name="id" value="@Model.Task.TaskId" />
+
+    <!-- Nowoczesny Nagłówek -->
+    <div class="card p-4 mb-4 border-0 shadow-sm" style="background-color: #1e293b; border-radius: 12px;">
+        <div class="d-flex justify-content-between align-items-start">
+            <!-- Lewa strona: Tytuł i Opis -->
+            <div class="w-100 me-3">
+                <div class="mb-2">
+                    <h2 class="view-mode text-white fw-bold m-0">@Model.Task.Title</h2>
+                    @if (canEditEverything)
+                    {
+                        <input type="text" name="title"
+                               class="edit-mode form-control bg-slate-800 text-white border-secondary d-none fs-4 fw-bold"
+                               style="background-color: #1e293b !important; color: white !important; border-color: #6c757d !important;"
+                               value="@Model.Task.Title" required />
+                    }
+                    else
+                    {
+                        <h3 class="edit-mode text-white fw-bold m-0 d-none">@Model.Task.Title</h3>
+                    }
+                </div>
+                <div>
+                    <p class="view-mode text-secondary m-0">@Model.Task.Description</p>
+                    @if (canEditEverything)
+                    {
+                        <textarea name="description"
+                              class="edit-mode form-control bg-slate-800 text-white border-secondary d-none"
+                              style="background-color: #1e293b !important; color: white !important; border-color: #6c757d !important;"
+                              rows="2">@Model.Task.Description</textarea>
+                    }
+                    else
+                    {
+                        <p class="edit-mode text-muted m-0 d-none">@Model.Task.Description</p>
+                    }
+                </div>
+            </div>
+
+            <!-- Prawa strona: Informacje o utworzeniu (ustawione na sztywno szerokością) -->
+            <div class="text-end" style="min-width: 180px;">
+                <div class="text-white small">
+                    Utworzono: <span class="d-block">@Model.Task.Created.ToString("dd.MM.yyyy")</span>
+                </div>
+                <div class="text-white small">
+                    przez <span class="d-block fw-bold">@(Model.Task.Creator != null ? $"{Model.Task.Creator.FirstName} {Model.Task.Creator.LastName}" : "Nieznany")</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Środek z danymi -->
+    <!-- Karta danych zadania -->
+    <div class="card p-4 mb-4 border-0 shadow-sm position-relative" style="background-color: #1e293b; border-radius: 12px;">
+
+        <!-- Przyciski akcji w prawym górnym rogu -->
+        <div class="position-absolute top-0 end-0 m-3 d-flex gap-2">
+            <!-- Przycisk Historii - wywołuje modal -->
+            <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#historyModal" title="Historia zmian">
+                <i class="bi bi-clock-history"></i>
+            </button>
+
+            @if (canEditExecution)
+            {
+                <!-- Przycisk edycji -->
+                <button type="button" id="btn-toggle-edit" class="btn btn-sm btn-outline-warning view-mode" title="Edytuj zadanie">
+                    <i class="bi bi-pencil"></i>
+                </button>
+
+                <!-- Przycisk usuwania - teraz w rogu zamiast na dole -->
+                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteTaskModal" title="Usuń zadanie">
+                    <i class="bi bi-trash"></i>
+                </button>
+
+                <!-- Przyciski zapisu/anulowania (tylko w trybie edycji) -->
+                <div class="edit-mode d-none d-flex gap-2">
+                    <button type="submit" class="btn btn-sm btn-success" title="Zapisz zmiany">
+                        <i class="bi bi-check-lg"></i>
+                    </button>
+                    <button type="button" id="btn-cancel-edit" class="btn btn-sm btn-secondary" title="Anuluj">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            }
+        </div>
+
+        <!-- Kolumny z danymi -->
+        <div class="row g-4 align-items-start mt-1">
+            <!-- Priorytet -->
+            <div class="col-md-3">
+                <small class="text-muted d-block text-uppercase small"><i class="bi bi-flag-fill me-1"></i>Priorytet</small>
+                <div class="view-mode mt-1"><partial name="_TaskPriorityBadge" model="Model.Task.Priority" /></div>
+                @if (canEditEverything)
+                {
+                    <select name="priority" class="edit-mode form-select bg-slate-800 text-white border-secondary d-none mt-1">
+                        @foreach (var p in Enum.GetValues(typeof(CyberProjekt.Models.TaskPriority)))
+                        {
+                            <!option value="@p" @(Model.Task.Priority.ToString() == p.ToString() ? "selected" : "")>@p</!option>
+                        }
+                    </select>
+                }
+                else
+                {
+                    <!-- WAŻNE: To rozwiązuje problem dla osób bez uprawnień -->
+                    <div class="edit-mode d-none mt-1 text-white">
+                        <partial name="_TaskPriorityBadge" model="Model.Task.Priority" />
+                    </div>
+                }
+            </div>
+
+            <!-- Przypisany do -->
+            <div class="col-md-3">
+                <small class="text-muted d-block text-uppercase small"><i class="bi bi-person-fill me-1"></i>Przypisany do</small>
+                <div class="view-mode text-white mt-1 fw-medium">@(Model.Task.AssignedUser != null ? $"{Model.Task.AssignedUser.FirstName} {Model.Task.AssignedUser.LastName}" : "Brak")</div>
+                @if (canEditExecution)
+                {
+                    <select name="assignedUserId" class="searchable-select edit-mode form-select bg-slate-800 text-white border border-secondary d-none mt-1" asp-items="ViewBag.AssignedUserId">
+                        <option value="">Brak</option>
+                    </select>
+                }
+                else
+                {
+                    <div class="edit-mode d-none text-white mt-1">
+                        @(Model.Task.AssignedUser != null ? $"{Model.Task.AssignedUser.FirstName} {Model.Task.AssignedUser.LastName}" : "Brak")
+                    </div>
+                }
+            </div>
+           
+
+            <!-- Termin -->
+            <div class="col-md-3">
+                <small class="text-muted d-block text-uppercase small"><i class="bi bi-calendar-event me-1"></i>Termin</small>
+                <span class="view-mode text-white mt-1 d-block fw-medium">@Model.Task.Deadline.ToString("dd.MM.yyyy")</span>
+                @if (canEditExecution)
+                {
+                    <input type="date"
+                           name="deadline"
+                           value="@Model.Task.Deadline.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)"
+                           class="edit-mode form-control bg-slate-800 text-white border border-secondary d-none mt-1"
+                           style="color-scheme: dark; background-color: #1e293b !important;" />
+                }
+                else
+                {
+                    <span class="edit-mode d-none text-white mt-1 d-block">@Model.Task.Deadline.ToString("dd.MM.yyyy")</span>
+                }
+            </div>
+
+            <!-- Status -->
+            <div class="col-md-3">
+                <small class="text-muted d-block text-uppercase small"><i class="bi bi-circle-fill me-1" style="color: @statusColor;"></i>Status</small>
+
+                <span class="view-mode mt-1 d-block fw-bold" style="color: @statusColor;">
+                    @TaskHelpers.GetDisplayName(Model.Task.Status)
+                </span>
+                @if (canEditExecution)
+                {
+                    <select name="status" class="edit-mode form-select bg-slate-800 text-white border border-secondary d-none mt-1">
+                        @foreach (var status in Enum.GetValues(typeof(CyberProjekt.Models.TaskStatus)))
+                        {
+                            var statusEnum = (CyberProjekt.Models.TaskStatus)status;
+                            @if (statusEnum != CyberProjekt.Models.TaskStatus.Removed)
+                            {
+                                <!option value="@status" @(Model.Task.Status == statusEnum ? "selected" : "")>
+                                @TaskHelpers.GetDisplayName(statusEnum)
+                                </!option>
+                            }
+
+                        }
+                    </select>
+                }
+                else
+                {
+                    <span class="edit-mode d-none mt-1 d-block fw-bold" style="color: @statusColor;">
+                        @TaskHelpers.GetDisplayName(Model.Task.Status)
+                    </span>
+                }
+            </div>
+        </div>
+    </div>
+</form>
+
+
+<!-- Sekcja Komentarzy -->
+<div class="card p-4 border-0 shadow-sm view-mode" id="comments-section">
+    <h4 class="text-white mb-4">Komentarze</h4>
+
+
+    <!-- Formularz dodawania nowego komentarza -->
+    <form asp-controller="Comment" asp-action="Add" asp-antiforgery="true" enctype="multipart/form-data" method="post" class="bg-slate-800 p-3 rounded">
+        <input type="hidden" name="Task.TaskId" value="@Model.Task.TaskId" />
+
+        <!-- Dodanie pola z bieżącym adresem URL -->
+        <input type="hidden" name="returnUrl" value="@(@ViewBag.ReturnUrl)" />
+
+        <div class="mb-3">
+            <textarea name="NewCommentText" class="form-control bg-dark text-white border-secondary" rows="3" placeholder="Dodaj komentarz..." required></textarea>
+        </div>
+        <div class="d-flex justify-content-between align-items-center">
+            <button type="submit" class="btn btn-primary px-4 mb-4">Dodaj komentarz</button>
+        </div>
+    </form>
+
+    <div class="comments-section mb-4">
+        @foreach (var comment in Model.Comments.OrderByDescending(c => c.CreatedAt))
+        {
+            <div class="mb-4 pb-3 border-bottom border-secondary" id="comment-@comment.CommentId">
+                <div class="d-flex align-items-center mb-2 justify-content-between">
+                    <div class="d-flex align-items-center">
+                        <div class="initials-outline me-2">@(comment.User != null ? $"{comment.User.FirstName[0]}{comment.User.LastName[0]}".ToUpper() : "U")</div>
+                        <strong class="text-white">@($"{comment.User?.FirstName} {comment.User?.LastName}" ?? "Nieznany Użytkownik")</strong>
+                        <small class="text-muted ms-3">@comment.CreatedAt.ToString("g")</small>
+                    </div>
+
+                    @* Sprawdzenie uprawnień: tylko autor widzi przyciski *@
+                    @if (comment.UserId == currentUserId)
+                    {
+                        <div class="d-flex gap-3">
+                            <button type="button" class="btn btn-sm btn-link text-warning p-0"
+                                    onclick="enableEdit(@comment.CommentId)">
+                                <i class="bi bi-pencil-square fs-5"></i>
+                            </button>
+
+                            <form asp-controller="Comment" asp-action="Delete" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="commentId" value="@comment.CommentId" />
+                                <input type="hidden" name="returnUrl" value="@ViewBag.ReturnUrl" />
+                                <button type="button" class="btn btn-sm btn-link text-danger p-0"
+                                        data-bs-toggle="modal" data-bs-target="#deleteCommentModal-@comment.CommentId">
+                                    <i class="bi bi-trash fs-5"></i>
+                                </button>
+                            </form>
+                        </div>
+                    }
+                </div>
+
+                <div id="comment-view-@comment.CommentId">
+                    <p class="text-white mb-2">@comment.Content</p>
+                </div>
+
+                <div id="comment-edit-@comment.CommentId" style="display:none;">
+                    <form asp-controller="Comment" asp-action="Edit" method="post">
+                        <input type="hidden" name="commentId" value="@comment.CommentId" />
+                        <input type="hidden" name="returnUrl" value="@ViewBag.ReturnUrl" />
+                        <textarea name="newContent" class="form-control bg-dark text-white mb-2">@comment.Content</textarea>
+                        <button type="submit" class="btn btn-sm btn-success">Zapisz</button>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="cancelEdit(@comment.CommentId)">Anuluj</button>
+                    </form>
+                </div>
+            </div>
+            <!-- Modal dla konkretnego komentarza -->
+            <div class="modal fade" id="deleteCommentModal-@comment.CommentId" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content bg-slate-800 text-white border border-secondary">
+                        <div class="modal-header border-bottom border-secondary">
+                            <h5 class="modal-title">Potwierdź usunięcie</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            Czy na pewno chcesz usunąć ten komentarz?
+                        </div>
+                        <div class="modal-footer border-top border-secondary">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Anuluj</button>
+                            <form asp-controller="Comment" asp-action="Delete" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="commentId" value="@comment.CommentId" />
+                                <input type="hidden" name="returnUrl" value="@ViewBag.ReturnUrl" />
+                                <button type="submit" class="btn btn-danger">Usuń komentarz</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+</div>
+<div class="modal fade" id="deleteTaskModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content bg-slate-800 text-white border border-secondary">
+            <div class="modal-header border-bottom border-secondary">
+                <h5 class="modal-title">Potwierdź usunięcie</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Czy na pewno chcesz usunąć to zadanie? Tej operacji nie można cofnąć.
+            </div>
+            <div class="modal-footer border-top border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Anuluj</button>
+                <form asp-controller="ProjectTask" asp-action="Delete" method="post">
+                    <input type="hidden" name="id" value="@Model.Task.TaskId" />
+                    <button type="submit" class="btn btn-danger">Usuń zadanie</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,142 @@
+﻿@model CyberProjekt.Models.Project
+
+@{
+    ViewData["Title"] = "Szczegóły projektu";
+
+    var allTasks = Model.Tasks ?? new List<CyberProjekt.Models.ProjectTask>();
+    var totalTasks = allTasks.Count();
+    var doneTasks = allTasks.Count(t => t.Status == CyberProjekt.Models.TaskStatus.Done);
+    var progress = totalTasks > 0 ? (int)((double)doneTasks / totalTasks * 100) : 0;
+
+    var tasksByStatus = allTasks.GroupBy(t => t.Status)
+                                .ToDictionary(g => g.Key, g => g.ToList());
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-white">Szczegóły projektu</h2>
+        <div>
+            <a href="@ViewBag.ReturnUrl" class="btn btn-outline-secondary me-2">Powrót do listy</a>
+            <a asp-controller="ProjectTask" asp-action="Create" asp-route-projectId="@Model.ProjectId" class="btn btn-primary">
+                + Dodaj zadanie
+            </a>
+        </div>
+    </div>
+
+    @* Karta podsumowania *@
+    <div class="card p-4 mb-4 border-0 shadow-sm">
+        <h3 class="text-primary fw-bold mb-2">@Model.Name</h3>
+        <p class="text-white mb-4">@Model.Description</p>
+        <div class="d-flex justify-content-between mb-2">
+            <small class="text-muted">Postęp realizacji</small>
+            <small class="text-white">@doneTasks z @totalTasks zadań ukończonych</small>
+        </div>
+        <div class="progress mb-4" style="height: 8px; border-radius: 4px; background-color: #334155;">
+            <div class="progress-bar bg-primary" role="progressbar" style="width: @progress%"></div>
+        </div>
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-calendar-event me-2 text-primary"></i>
+                    <div>
+                        <small class="text-muted d-block">Start</small>
+                        <span class="text-white">@Model.StartDate.ToString("dd.MM.yyyy")</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-calendar-check me-2 text-primary"></i>
+                    <div>
+                        <small class="text-muted d-block">Termin</small>
+                        <span class="text-white">@Model.EndDate.ToString("dd.MM.yyyy")</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-person me-2 text-primary"></i>
+                    <div>
+                        <small class="text-muted d-block">Twórca</small>
+                        <span class="text-white">@(Model.CreatedBy != null ? $"{Model.CreatedBy.FirstName} {Model.CreatedBy.LastName}" : "Nieznany")</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    @* Tablica zadań *@
+    <div class="card p-4 border-0 shadow-sm">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="text-white m-0">Zadania w projekcie</h4>
+        </div>
+
+        @if (allTasks.Any())
+        {
+            <div class="row">
+                @foreach (var status in Enum.GetValues(typeof(CyberProjekt.Models.TaskStatus)))
+                {
+                    var statusEnum = (CyberProjekt.Models.TaskStatus)status;
+                    var statusTasks = tasksByStatus.ContainsKey(statusEnum) ? tasksByStatus[statusEnum] : new List<CyberProjekt.Models.ProjectTask>();
+                    var statusColor = @TaskHelpers.GetStatusColor(statusEnum);
+
+                    <div class="col-md">
+                        <div class="d-flex justify-content-between align-items-center mb-3 pb-2" style="border-bottom: 2px solid @statusColor;">
+                            <h6 class="text-uppercase fw-bold m-0 text-white">@TaskHelpers.GetDisplayName(statusEnum)</h6>
+                            <span class="badge" style="background: #334155; color: #fff;">@statusTasks.Count</span>
+                        </div>
+
+                        @foreach (var task in statusTasks)
+                        {
+                            <div class="card p-3 mb-3 task-card position-relative" style="border-left: 4px solid @statusColor;">
+                                <button type="button" class="btn btn-link text-muted border-0 p-0 position-absolute top-0 end-0 m-2"
+                                        onclick="openTaskModal('@task.TaskId', '@Url.Action("GetEditForm", "Project")', 'taskEditModal', 'taskModalContent')">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <h6 class="fw-bold mb-2 pe-4">@task.Title</h6>
+
+                                @* Przywrócone badge priorytetów *@
+                                <div class="mb-3">
+                                    <partial name="_TaskPriorityBadge" model="task.Priority" />
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    <div class="text-muted small">
+                                        @* <i class="bi bi-paperclip me-1"></i>@(task.Attachments?.Count ?? 0) *@
+                                        <i class="bi bi-chat-left-text ms-2 me-1"></i>@(task.Comments?.Count ?? 0)
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        @if (task.AssignedUser != null)
+                                        {
+                                            <div class="initials-outline">
+                                                @($"{task.AssignedUser.FirstName[0]}{task.AssignedUser.LastName[0]}".ToUpper())
+                                            </div>
+                                        }
+                                        <small class="text-muted ms-2"><i class="bi bi-calendar-check me-1"></i>@task.Deadline.ToString("dd.MM")</small>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+<div class="modal fade" id="taskEditModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content bg-slate-800 text-white border-secondary">
+            <div class="modal-header border-0 pb-0">
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body pt-0" id="taskModalContent">
+                <div class="text-center p-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Ładowanie...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

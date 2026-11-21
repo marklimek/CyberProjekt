@@ -1,0 +1,14 @@
+﻿@* Model będzie przyjmował nazwę akcji, np. "Index" lub "MyProjects" *@
+
+<form method="get" id="searchForm" class="mb-4">
+    <div class="input-group mb-4">
+        <input type="text" name="search" id="searchInput" class="form-control bg-dark text-white border-secondary"
+               placeholder="@(ViewBag.Placeholder ?? "Szukaj...")" value="@ViewBag.Search">
+        <button type="submit" class="btn btn-outline-light mx-3 ">Szukaj</button>
+        @if (!string.IsNullOrEmpty(ViewBag.Search))
+        {
+            @* Pobierz akcję z ViewData lub przekaż ją w wywołaniu *@
+            <a asp-action="@ViewData["ActionName"]" class="btn btn-outline-secondary ml-1">Wyczyść</a>
+        }
+    </div>
+</form>

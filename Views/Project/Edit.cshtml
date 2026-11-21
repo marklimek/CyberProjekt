@@ -1,0 +1,28 @@
+﻿@model CyberProjekt.Models.Project
+
+@{
+    ViewData["Title"] = "Edytuj projekt";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card p-4">
+                <h2 class="text-white mb-4">Edytuj projekt</h2>
+
+                <form asp-action="Edit" method="post">
+                    <partial name="_ProjectForm" model="Model" />
+
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary">Zapisz zmiany</button>
+                        <a asp-action="MyProjects" class="btn btn-link text-muted mt-2">Anuluj</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

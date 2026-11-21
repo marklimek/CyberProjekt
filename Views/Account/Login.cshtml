@@ -1,0 +1,36 @@
+﻿@model CyberProjekt.Models.ViewModels.LoginViewModel
+@{
+    ViewData["Title"] = "Logowanie";
+}
+
+<div class="container d-flex justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="card p-4" style="width: 100%; max-width: 400px;">
+        <h2 class="text-center mb-4 fw-bold">Logowanie</h2>
+
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+        <form asp-controller="Account" asp-action="Login" method="post">
+            <div class="mb-3">
+                <label asp-for="Username" class="form-label" style="color: var(--tm-muted);">Login</label>
+                <input asp-for="Username" class="form-control" style="background-color: var(--tm-bg); border: 1px solid #334155; color: white;" />
+                <span asp-validation-for="Username" class="text-danger small"></span>
+            </div>
+
+            <div class="mb-4">
+                <label asp-for="Password" class="form-label" style="color: var(--tm-muted);">Hasło (lub 8-cyfrowy kod jednorazowy)</label>
+                <input asp-for="Password" type="password" class="form-control" style="background-color: var(--tm-bg); border: 1px solid #334155; color: white;" />
+                <span asp-validation-for="Password" class="text-danger small"></span>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Zaloguj się</button>
+        </form>
+
+        <div class="mt-3 text-center">
+            <span class="small" style="color: var(--tm-muted);">Nie pamiętasz hasła? Skontaktuj się z administratorem w celu resetu.</span>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,80 @@
+﻿@model CyberProjekt.Models.ProjectTask
+
+@{
+    ViewData["Title"] = "Dodaj zadanie";
+}
+
+<div class="container mt-5">
+    <div class="card p-4">
+        <h2 class="text-white mb-4">Nowe zadanie</h2>
+        <form asp-action="Create">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+            <div class="mb-3">
+                <label asp-for="Title" class="form-label text-white">Tytuł</label>
+                <input asp-for="Title" class="form-control bg-dark text-white" />
+                <span asp-validation-for="Title" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Description" class="form-label text-white">Opis</label>
+                <textarea asp-for="Description" class="form-control bg-dark text-white"></textarea>
+                <span asp-validation-for="Description" class="text-danger"></span>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    @if (ViewBag.SelectedProjectId != null)
+                    {
+                        <input type="hidden" name="ProjectId" value="@ViewBag.SelectedProjectId" />
+                        <div class="project-info">
+                            <span class="text-muted">Projekt</span>
+                            <div class="fw-bold fs-5">@ViewBag.ProjectName</div>
+                        </div>
+ 
+                    }
+                    else
+                    {
+                        <label asp-for="ProjectId" class="form-label text-white">Projekt</label>
+                        <select asp-for="ProjectId" class="form-control bg-dark text-white searchable-select" asp-items="ViewBag.ProjectId">
+                            <option value="">Wybierz projekt</option>
+                        </select>
+                    }
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="AssignedUserId" class="form-label text-white">Przypisz do</label>
+                    <select asp-for="AssignedUserId" class="form-control bg-dark text-white searchable-select" asp-items="ViewBag.AssignedUserId">
+                        <option value="">Wybierz użytkownika</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Priority" class="form-label text-white">Priorytet</label>
+                    <select asp-for="Priority"
+                            class="form-select bg-dark text-white"
+                            asp-items="Html.GetEnumSelectList<CyberProjekt.Models.TaskPriority>()">
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Deadline" class="form-label text-white">Termin</label>
+
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark text-white border-white">
+                            <i class="bi bi-calendar3"></i>
+                        </span>
+
+                        <input asp-for="Deadline"
+                               type="date"
+                               class="form-control bg-dark text-white" />
+                    </div>
+
+                    <span asp-validation-for="Deadline" class="text-danger"></span>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Zapisz zadanie</button>
+            <a asp-action="Index" class="btn btn-secondary">Anuluj</a>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,77 @@
+﻿@using System.Security.Claims
+@{
+    var currentAction = ViewContext.RouteData.Values["action"].ToString();
+}
+
+<thead>
+    <tr>
+        <th>
+            <a asp-action="@currentAction" asp-route-sortOrder="@ViewBag.NameSort" class="text-white text-decoration-none">
+                Nazwa <i class="bi bi-arrow-down-up"></i>
+            </a>
+        </th>
+        <th>Opis</th>
+        <th>
+            <a asp-action="@currentAction" asp-route-sortOrder="@ViewBag.StartDateSort" class="text-white text-decoration-none">
+                Data rozpoczęcia <i class="bi bi-arrow-down-up"></i>
+            </a>
+        </th>
+        <th>
+            <a asp-action="@currentAction" asp-route-sortOrder="@ViewBag.EndDateSort" class="text-white text-decoration-none">
+                Data zakończenia <i class="bi bi-arrow-down-up"></i>
+            </a>
+        </th>
+        <th class="col-actions">Akcje</th>
+    </tr>
+</thead>
+<tbody>
+    @foreach (var item in Model)
+    {
+        <tr>
+            <td>@item.Name</td>
+            <td class="col-description" title="@item.Description">
+                @item.Description
+            </td>
+            <td>@item.StartDate.ToString("yyyy-MM-dd")</td>
+            <td>@item.EndDate.ToString("yyyy-MM-dd")</td>
+            <td class="align-middle">
+                <div class="actions-container">
+                <a asp-action="Details" asp-route-id="@item.ProjectId" asp-route-returnUrl="@Context.Request.Path" class="btn btn-action btn-details"><i class="bi bi-eye"></i> Szczegóły</a>
+                @if (ViewBag.ShowManagementActions == true)
+                {
+                    @if (item.UserId == User.FindFirstValue(ClaimTypes.NameIdentifier))
+                    {
+                        <a asp-action="Edit" asp-route-id="@item.ProjectId" class="btn btn-action btn-edit"><i class="bi bi-pencil-square"></i> Edytuj</a>
+                        <form asp-action="Delete" asp-route-id="@item.ProjectId" method="post" class="d-inline">
+                                <button type="button" class="btn btn-action btn-delete"
+                                        data-bs-toggle="modal" data-bs-target="#deleteProjectModal-@item.ProjectId">
+                                    <i class="bi bi-trash"></i> Usuń
+                                </button>
+
+                                <div class="modal fade" id="deleteProjectModal-@item.ProjectId" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content bg-slate-800 text-white border border-secondary">
+                                            <div class="modal-header border-bottom border-secondary">
+                                                <h5 class="modal-title">Potwierdź usunięcie projektu</h5>
+                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                Czy na pewno chcesz usunąć projekt <strong>@item.Name</strong>? Tej operacji nie można cofnąć.
+                                            </div>
+                                            <div class="modal-footer border-top border-secondary">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Anuluj</button>
+                                                <form asp-action="Delete" asp-route-id="@item.ProjectId" method="post" class="d-inline">
+                                                    <button type="submit" class="btn btn-danger">Usuń projekt</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                        </form>
+                    }
+                }
+                </div>
+            </td>
+        </tr>
+    }
+</tbody>

@@ -1,0 +1,32 @@
+﻿@model IEnumerable<CyberProjekt.Models.Project>
+@{
+    ViewData["Title"] = "Moje projekty";
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div><h2 class="text-white mb-4">Moje projekty</h2></div>
+        <a asp-action="Create" asp-route-returnUrl="@Context.Request.Path" class="btn btn-primary mb-3">+ Dodaj nowy projekt</a>
+    </div>
+    @{
+        ViewData["ActionName"] = "MyProjects";
+        ViewBag.Placeholder = "Szukaj projektów...";
+    }
+    <partial name="_SearchForm" />
+
+    @if (Model != null && Model.Any())
+    {
+        <table class="table table-dark table-hover">
+            <partial name="_ProjectTable" model="Model" />
+            
+        </table>
+    }
+    else
+    {
+        <div class="card p-4 mt-4 text-center">
+            <h4 class="text-white">Brak projektów</h4>
+            <p class="text-muted">Nie stworzyłeś jeszcze żadnego projektu.</p>
+            <a asp-action="Create" class="btn btn-primary w-auto mx-auto">Dodaj pierwszy projekt</a>
+        </div>
+    }
+</div>

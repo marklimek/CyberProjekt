@@ -1,0 +1,243 @@
+/* 1. Zmienne globalne - tutaj definiujesz kolory i sta³e */
+:root {
+    --tm-bg: #0f172a;
+    --tm-surface: #1e293b;
+    --tm-text: #f1f5f9;
+    --tm-muted: #94a3b8;
+    --tm-primary: #6366f1;
+}
+
+/* 2. Reset i style bazowe */
+body {
+    background-color: var(--tm-bg);
+    color: var(--tm-text);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 3. Komponenty wielokrotnego u¿ytku (np. Karty, Przyciski) */
+.card {
+    background-color: var(--tm-surface);
+    border: 1px solid #334155;
+    color: var(--tm-text);
+    border-radius: 12px;
+}
+
+.btn-primary {
+    background-color: var(--tm-primary);
+    border: none;
+    padding: 0.5rem 1.5rem;
+    border-radius: 50px;
+    transition: all 0.3s ease;
+}
+
+    .btn-primary:hover {
+        filter: brightness(1.2);
+        transform: translateY(-2px);
+    }
+
+/* 4. Specyficzne elementy uk³adu */
+.tm-navbar {
+    background: rgba(15, 23, 42, 0.9);
+    border-bottom: 1px solid #334155;
+}
+
+.tm-hero {
+    padding: 6rem 0;
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+}
+
+/* 5. Style stopki (Footer) */
+.footer {
+    border-top: 0.5px solid #334155;
+    background-color: var(--tm-surface);
+    color: var(--tm-muted);
+    padding: 1rem 0;
+    margin-top: auto;
+    text-align: left;
+    font-size: 0.85rem;
+    padding-left: 1rem;
+}
+/* Nowoczesne, subtelne przyciski */
+.btn-action {
+    padding: 0.25rem 0.75rem;
+    font-size: 0.85rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+    border: none;
+    margin-right: 4px;
+}
+
+.btn-details {
+    background-color: #475569;
+    color: #f8fafc;
+}
+
+    .btn-details:hover {
+        background-color: #334155;
+        color: #fff;
+    }
+
+.btn-edit {
+    background-color: #334155;
+    color: #fbbf24;
+    border: 1px solid #fbbf24;
+}
+
+    .btn-edit:hover {
+        background-color: #fbbf24;
+        color: #1e293b;
+    }
+
+.btn-delete {
+    background-color: transparent;
+    color: #f43f5e;
+    border: 1px solid #f43f5e;
+}
+
+    .btn-delete:hover {
+        background-color: #f43f5e;
+        color: #fff;
+    }
+
+.col-actions {
+    width: 320px !important;
+    white-space: nowrap;
+}
+.actions-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: center;
+}
+
+.col-description {
+    max-width: 300px; 
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.table td {
+    vertical-align: middle;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+    display: none;
+    -webkit-appearance: none;
+}
+
+input[type="date"]::-webkit-inner-spin-button,
+input[type="date"]::-webkit-clear-button {
+    display: none;
+}
+
+input[type="date"] {
+    -moz-appearance: textfield;
+}
+
+
+.project-info {
+    background: rgba(99, 102, 241, 0.15);
+    border-left: 4px solid var(--tm-primary);
+    padding: 12px 16px;
+    border-radius: 8px;
+    color: var(--tm-text);
+}
+
+/* Nowy wygl¹d kart zadañ */
+.task-card {
+    background-color: #1e293b !important; /* Spójne z reszt¹ aplikacji */
+    border-top: 1px solid #334155;
+    border-right: 1px solid #334155;
+    border-bottom: 1px solid #334155;
+    transition: transform 0.2s;
+}
+
+.task-card:hover {
+    transform: translateY(-2px);
+    background-color: #374151 !important;
+}
+
+/* Dostosowanie paska postêpu */
+.progress {
+    background-color: #334155 !important;
+}
+
+.bg-slate-800 {
+    background-color: #1e293b;
+}
+.hover-primary:hover {
+    color: var(--tm-primary) !important;
+}
+/* WyraŸniejsze nag³ówki kolumn */
+.column-header {
+    border-bottom: 2px solid var(--tm-primary);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+/* Licznik zadañ w kolumnie */
+.badge {
+    padding: 0.25rem 0.6rem;
+    font-size: 0.75rem;
+}
+
+.col-md h6 {
+    letter-spacing: 0.5px;
+    font-size: 0.85rem;
+}
+/* Ikona edycji - teraz bardziej wyraŸna (jaœniejszy odcieñ i wiêkszy kontrast) */
+.edit-icon-visible {
+    color: #e2e8f0; /* Jaœniejszy kolor dla lepszej widocznoœci */
+    font-size: 1.1rem;
+    opacity: 0.6;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+    .edit-icon-visible:hover {
+        opacity: 1;
+        color: var(--tm-primary); /* Podœwietlenie na g³ówny kolor projektu przy najechaniu */
+        transform: scale(1.1);
+    }
+
+/* Inicja³y - bia³a obrêcz bez wype³nienia */
+.initials-outline {
+    width: 28px;
+    height: 28px;
+    border: 1.5px solid #ffffff; /* Bia³a obrêcz */
+    color: #ffffff; /* Bia³y tekst */
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 600;
+}
+
+/* Zmuszenie tekstu wewn¹trz Tom Select do bycia bia³ym */
+.ts-control,
+.ts-control input,
+.ts-control .item {
+    color: #f1f5f9 !important; /* Twoja zmienna --tm-text z site_3.css */
+    background-color: #1e293b !important; /* Twoja zmienna --tm-surface z site_3.css */
+    border-color: #334155 !important;
+}
+
+/* Kolor tekstu w rozwijanej liœcie (dropdown) */
+.ts-dropdown {
+    background-color: #1e293b !important;
+    color: #f1f5f9 !important;
+    border-color: #334155 !important;
+}
+
+    /* Kolor podœwietlenia elementu po najechaniu myszk¹ */
+    .ts-dropdown .option.active {
+        background-color: #6366f1 !important; /* Twoja zmienna --tm-primary */
+        color: #ffffff !important;
+    }
+
+.bi {
+    pointer-events: none;
+}

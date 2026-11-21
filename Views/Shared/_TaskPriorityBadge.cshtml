@@ -1,0 +1,23 @@
+﻿@model CyberProjekt.Models.TaskPriority
+
+@{
+    var (color, label, icon) = Model switch
+    {
+        CyberProjekt.Models.TaskPriority.Niski => ("rgba(34, 197, 94, 0.2)", "Niski", "🟢"),
+        CyberProjekt.Models.TaskPriority.Średni => ("rgba(234, 179, 8, 0.2)", "Średni", "🟡"),
+        CyberProjekt.Models.TaskPriority.Wysoki => ("rgba(249, 115, 22, 0.2)", "Wysoki", "🟠"),
+        CyberProjekt.Models.TaskPriority.Krytyczny => ("rgba(239, 68, 68, 0.2)", "Krytyczny", "🔴"),
+        _ => ("transparent", "Brak", "")
+    };
+    
+    // Używamy koloru tekstu jaśniejszego dla czytelności (bazując na kodzie kolorów z Twojego switcha)
+    var textColor = Model switch {
+        CyberProjekt.Models.TaskPriority.Niski => "#4ade80",
+        CyberProjekt.Models.TaskPriority.Średni => "#facc15",
+        CyberProjekt.Models.TaskPriority.Wysoki => "#fb923c",
+        CyberProjekt.Models.TaskPriority.Krytyczny => "#f87171",
+        _ => "#ffffff"
+    };
+}
+
+<span class="badge" style=" color: @textColor;">@icon @label</span>

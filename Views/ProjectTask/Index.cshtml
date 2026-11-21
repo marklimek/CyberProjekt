@@ -1,0 +1,87 @@
+﻿@model IEnumerable<CyberProjekt.Models.ProjectTask>
+
+@{
+    ViewData["Title"] = "Wszystkie zadania";
+}
+
+<div class="container mt-5">
+    <h2 class="text-white mb-4">Wszystkie zadania</h2>
+
+    @{
+        ViewData["ActionName"] = "Index";
+        ViewBag.Placeholder = "Szukaj zadań...";
+    }
+    <partial name="_SearchForm" />
+
+    @if (Model != null && Model.Any())
+    {
+        <table class="table table-dark table-hover">
+            <thead style="background: #1e293b; color: #ffffff;">
+                <tr>
+                    <th class="ps-4">
+                        <a asp-action="Index" asp-route-sortOrder="@ViewBag.TitleSort" class="text-white text-decoration-none">
+                            Zadanie <i class="bi bi-arrow-down-up"></i>
+                        </a>
+                    </th>
+                    <th>
+                        <a asp-action="Index" asp-route-sortOrder="@ViewBag.ProjectSort" class="text-white text-decoration-none">
+                            Projekt <i class="bi bi-arrow-down-up"></i>
+                        </a>
+                    </th>
+                    <th>Przypisany użytkownik</th>
+                    <th>Status</th>
+                    <th class="pe-4">
+                        <a asp-action="Index" asp-route-sortOrder="@ViewBag.DateSort" class="text-white text-decoration-none">
+                            Termin <i class="bi bi-arrow-down-up"></i>
+                        </a>
+                    </th>
+                    <th>Akcje</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var task in Model)
+                {
+                    var statusColor = @TaskHelpers.GetStatusColor(task.Status);
+                    <tr>
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center">
+                                @* Pasek akcentu w kolorze statusu *@
+                                <div style="width: 4px; height: 24px; background: @statusColor;" class="me-3 rounded"></div>
+                                <span class="text-white fw-bold">@task.Title</span>
+                            </div>
+                        </td>
+                        <td>@(task.Project?.Name ?? "Brak")</td>
+                        <td>
+                            @if (task.AssignedUser != null)
+                            {
+                                @($"{task.AssignedUser.FirstName} {task.AssignedUser.LastName}")
+                            }
+                            else
+                            {
+                                <span class="text-muted">Brak</span>
+                            }
+                        </td>
+                        <td>
+                            @* Status jako badge *@
+                            <span class="badge" style="background: @(statusColor + "20");  border: 1px solid @statusColor;">
+                                @TaskHelpers.GetDisplayName(task.Status)
+                            </span>
+                        </td>
+                        <td>@task.Deadline.ToString("yyyy-MM-dd")</td>
+                        <td>
+                            <a asp-action="Details" asp-route-id="@task.TaskId" class="btn btn-action btn-details"><i class="bi bi-eye"></i> Szczegóły</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <div class="card p-4 mt-4 text-center">
+            <h4 class="text-white">Brak zadań</h4>
+            <p class="text-muted">W systemie nie ma jeszcze żadnych zadań.</p>
+            <a asp-controller="ProjectTask" asp-action="Create" class="btn btn-primary w-auto mx-auto">Dodaj pierwsze zadanie</a>
+        </div>
+    }
+</div>

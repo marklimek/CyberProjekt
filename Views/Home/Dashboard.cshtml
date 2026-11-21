@@ -1,0 +1,126 @@
+﻿@model CyberProjekt.Models.ViewModels.DashboardViewModel
+@{
+    ViewData["Title"] = "Panel Główny";
+}
+@using System.Security.Claims
+<div class="container mt-3">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+            <h3 class="text-white fw-bold">Panel Główny</h3>
+            <p class="text-muted mb-0">Witaj ponownie, @(User.FindFirst("FirstName")?.Value). Sprawdź status swoich zadań.</p>
+        </div>
+        <div class="text-end">
+            <span class="badge bg-secondary text-dark">Data: @DateTime.Now.ToString("dd.MM.yyyy")</span>
+        </div>
+    </div>
+
+        <!-- Kafelki -->
+    <div class="row g-2 mb-4">
+        <div class="col-md-3"><div class="card p-3"><small class="text-muted">WSZYSTKIE ZADANIA</small><h2 class="mt-2">@Model.AllTasksCount</h2></div></div>
+        <div class="col-md-3"><div class="card p-3"><small class="text-muted">W REALIZACJI</small><h2 class="mt-2 text-primary">@Model.InProgressTasksCount</h2></div></div>
+        <div class="col-md-3"><div class="card p-3"><small class="text-muted">PRZETERMINOWANE</small><h2 class="mt-2 text-danger">@Model.OverdueTasksCount</h2></div></div>
+        <div class="col-md-3"><div class="card p-3"><small class="text-muted">ZAKOŃCZONE</small><h2 class="mt-2 text-success">@Model.CompletedTasksCount</h2></div></div>
+    </div>
+
+    <div class="row g-4 mb-5">
+        <div class="col-md-8">
+            <div class="card p-4 bg-slate-800 border-0 h-100">
+                <h4 class="mb-4 text-white">Zadania w moich projektach</h4>
+                <canvas id="projectChart" style="max-height: 300px;"></canvas>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card p-3 h-100">
+                <h4 class="mb-3">Postęp projektów</h4>
+                @foreach (var proj in Model.ProjectsProgress)
+                {
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-white">@proj.Name</span>
+                            <span class="text-muted">@proj.Progress%</span>
+                        </div>
+                        <div class="progress" style="height: 8px; background-color: #334155;">
+                            <div class="progress-bar bg-primary" role="progressbar"
+                                 style="width: @proj.Progress%;"
+                                 aria-valuenow="@proj.Progress" aria-valuemin="0" aria-valuemax="100">
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="card p-3 mt-2">
+        <h4 class="mb-2">Najpilniejsze zadania</h4>
+        <div class="table-responsive">
+            <table class="table table-dark table-sm table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Zadanie</th>
+                        <th>Projekt</th>
+                        <th>Termin</th>
+                        <th>Akcja</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var task in Model.UrgentTasks)
+                    {
+                        <tr>
+                            <td>@task.Title</td>
+                            <td>@(task.Project?.Name ?? "Brak")</td>
+                            <td class="@(task.Deadline < DateTime.Now ? "text-danger" : "")">
+                                @task.Deadline.ToString("dd.MM.yyyy")
+                            </td>
+                            <td>
+                                <a asp-controller="ProjectTask" asp-action="Details" asp-route-id="@task.TaskId"
+                                   class="btn btn-sm btn-outline-light">Zobacz</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const ctx = document.getElementById('projectChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: @Json.Serialize(Model.ProjectNames),
+                datasets: [
+                    { label: 'Nowe', data: @Json.Serialize(Model.NewTasks), backgroundColor: '#6366f1' },
+                    { label: 'W trakcie', data: @Json.Serialize(Model.InProgressTasks), backgroundColor: '#eab308' },
+                    { label: 'W weryfikacji', data: @Json.Serialize(Model.InVerificationTasks), backgroundColor: '#f97316' },
+                    { label: 'Zrobione', data: @Json.Serialize(Model.DoneTasks), backgroundColor: '#22c55e' }
+                ]
+            },
+           options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        stacked: false,
+                        ticks: { color: '#ffffff' }, // Kolor etykiet osi X
+                        grid: { color: '#ffffff' }   // Kolor linii siatki osi X
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0,
+                            stepSize: 1,
+                            color: '#ffffff'        // Kolor etykiet osi Y
+                        },
+                        grid: { color: '#ffffff' }   // Kolor linii siatki osi Y
+                    }
+                },
+                plugins: {
+                    legend: { labels: { color: '#ffffff' } }
+                }
+            }
+        });
+    </script>
+}
