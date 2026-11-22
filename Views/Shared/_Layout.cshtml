@@ -1,6 +1,22 @@
 ﻿@using Microsoft.AspNetCore.Authorization
 @using System.Security.Claims
+@using CyberProjekt.Data
+@using Microsoft.EntityFrameworkCore
 @inject IAuthorizationService AuthorizationService
+@inject AppDbContext DbContext
+
+@{
+    var idleTimeoutMinutes = 15;
+    if (User.Identity?.IsAuthenticated == true)
+    {
+        var policy = await DbContext.SecurityPolicies.AsNoTracking().FirstOrDefaultAsync();
+        if (policy != null)
+        {
+            idleTimeoutMinutes = policy.SessionIdleTimeoutMinutes;
+        }
+    }
+    var isGuest = User.IsInRole("Gość");
+}
 
 <!DOCTYPE html>
 <html lang="pl">
@@ -33,7 +49,10 @@
                                 </a>
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" asp-controller="Project" asp-action="Index">Lista projektów</a></li>
-                                    <li><a class="dropdown-item" asp-controller="Project" asp-action="MyProjects">Moje projekty</a></li>
+                                    @if (!isGuest)
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="Project" asp-action="MyProjects">Moje projekty</a></li>
+                                    }
                                 </ul>
                             </li>
                             <li class="nav-item dropdown">
@@ -42,7 +61,10 @@
                                 </a>
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" asp-controller="ProjectTask" asp-action="Index">Lista zadań</a></li>
-                                    <li><a class="dropdown-item" asp-controller="ProjectTask" asp-action="MyTasks">Moje zadania</a></li>
+                                    @if (!isGuest)
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="ProjectTask" asp-action="MyTasks">Moje zadania</a></li>
+                                    }
                                 </ul>
                             </li>
                         </ul>
@@ -73,7 +95,21 @@
                                     <i class="bi bi-shield-lock"></i> Panel Administratora
                                 </a>
                                 <ul class="dropdown-menu dropdown-menu-end">
-                                    <li><a class="dropdown-item" asp-controller="Admin" asp-action="Index">Lista użytkowników</a></li>
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Admin" asp-action="Index" asp-route-tab="users">
+                                            <i class="bi bi-people me-1"></i> Zarządzanie użytkownikami
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Admin" asp-action="Index" asp-route-tab="policy">
+                                            <i class="bi bi-shield-check me-1"></i> Polityka bezpieczeństwa
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Admin" asp-action="Index" asp-route-tab="stats">
+                                            <i class="bi bi-bar-chart me-1"></i> Statystyki zadań
+                                        </a>
+                                    </li>
                                 </ul>
                             </div>
                         }
@@ -111,6 +147,29 @@
     <partial name="_ValidationScriptsPartial" />
     <script src="~/js/date-picker.js"></script>
     <script src="~/js/tasks-and-modals.js" asp-append-version="true"></script>
+
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <script>
+            (function () {
+                const idleTimeoutMs = @idleTimeoutMinutes * 60 * 1000;
+                let logoutTimer;
+
+                function resetIdleTimer() {
+                    clearTimeout(logoutTimer);
+                    logoutTimer = setTimeout(() => {
+                        window.location.href = '/Account/ExpiredLogout';
+                    }, idleTimeoutMs);
+                }
+
+                ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'].forEach(evt => {
+                    window.addEventListener(evt, resetIdleTimer, { passive: true });
+                });
+
+                resetIdleTimer();
+            })();
+        </script>
+    }
 
     @RenderSection("Scripts", required: false)
 </body>

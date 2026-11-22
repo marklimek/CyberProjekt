@@ -1,14 +1,15 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
+﻿using System.Security.Claims;
 using CyberProjekt.Data;
 using CyberProjekt.Models;
 using CyberProjekt.Models.ViewModels;
-using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
 
 namespace CyberProjekt.Controllers
 {
+    [Authorize]
     public class ProjectController : Controller
     {
         private readonly AppDbContext _context;
@@ -23,7 +24,7 @@ namespace CyberProjekt.Controllers
             ViewBag.Search = search;
             ViewBag.CurrentSort = sortOrder;
 
-            ViewBag.NameSort = String.IsNullOrEmpty(sortOrder) ? "name_desc" : "";
+            ViewBag.NameSort = string.IsNullOrEmpty(sortOrder) ? "name_desc" : "";
             ViewBag.StartDateSort = sortOrder == "dateStart" ? "dateStart_desc" : "dateStart";
             ViewBag.EndDateSort = sortOrder == "dateEnd" ? "dateEnd_desc" : "dateEnd";
 
@@ -87,7 +88,7 @@ namespace CyberProjekt.Controllers
             ViewBag.Search = search;
             ViewBag.CurrentSort = sortOrder;
 
-            ViewBag.NameSort = String.IsNullOrEmpty(sortOrder) ? "name_desc" : "";
+            ViewBag.NameSort = string.IsNullOrEmpty(sortOrder) ? "name_desc" : "";
             ViewBag.StartDateSort = sortOrder == "dateStart" ? "dateStart_desc" : "dateStart";
             ViewBag.EndDateSort = sortOrder == "dateEnd" ? "dateEnd_desc" : "dateEnd";
 
@@ -122,7 +123,6 @@ namespace CyberProjekt.Controllers
             return View(myProjects.ToList());
         }
 
-        [Authorize]
         public async Task<IActionResult> Details(int? id, string? returnUrl = null)
         {
             if (id == null) return NotFound();

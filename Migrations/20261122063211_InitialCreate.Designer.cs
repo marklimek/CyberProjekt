@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CyberProjekt.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261121130504_InitialCreate")]
+    [Migration("20261122063211_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -272,9 +272,6 @@ namespace CyberProjekt.Migrations
                     b.Property<bool>("IsBlocked")
                         .HasColumnType("INTEGER");
 
-                    b.Property<bool>("IsTotpEnabled")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -319,9 +316,6 @@ namespace CyberProjekt.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("SecurityStamp")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("TotpSecret")
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("TwoFactorEnabled")

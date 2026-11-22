@@ -1,23 +1,24 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
+﻿using System.Security.Claims;
 using CyberProjekt.Data;
 using CyberProjekt.Models;
 using CyberProjekt.Models.ViewModels;
-using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
 
 namespace CyberProjekt.Controllers
 {
+    [Authorize]
     public class ProjectTaskController : Controller
     {
-
         private readonly AppDbContext _context;
 
         public ProjectTaskController(AppDbContext context)
         {
             _context = context;
         }
+
         private string GetPolishStatus(Models.TaskStatus status)
         {
             return status switch
@@ -30,13 +31,14 @@ namespace CyberProjekt.Controllers
                 _ => status.ToString()
             };
         }
+
         public async Task<IActionResult> Index(string sortOrder, string search)
         {
             ViewBag.CurrentSort = sortOrder;
             ViewBag.Search = search;
 
-            ViewBag.TitleSort = String.IsNullOrEmpty(sortOrder) ? "title_desc" : "";
-            ViewBag.ProjectSort = String.IsNullOrEmpty(sortOrder) ? "project_desc" : "";
+            ViewBag.TitleSort = string.IsNullOrEmpty(sortOrder) ? "title_desc" : "";
+            ViewBag.ProjectSort = string.IsNullOrEmpty(sortOrder) ? "project_desc" : "";
             ViewBag.DateSort = sortOrder == "date" ? "date_desc" : "date";
 
             var tasks = await _context.Tasks
@@ -44,7 +46,7 @@ namespace CyberProjekt.Controllers
                 .Include(t => t.AssignedUser)
                 .ToListAsync();
 
-            if (!String.IsNullOrEmpty(search))
+            if (!string.IsNullOrEmpty(search))
             {
                 var searchTerms = search.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 foreach (var term in searchTerms)
@@ -60,13 +62,12 @@ namespace CyberProjekt.Controllers
                     ).ToList();
                 }
             }
+
             tasks = sortOrder switch
             {
                 "project" => tasks.OrderBy(t => t.Project?.Name?.Trim() ?? "").ToList(),
                 "project_desc" => tasks.OrderByDescending(t => t.Project?.Name?.Trim() ?? "").ToList(),
-
                 "title_desc" => tasks.OrderByDescending(t => t.Title?.Trim() ?? "").ToList(),
-
                 "date" => tasks.OrderBy(t => t.Deadline).ToList(),
                 "date_desc" => tasks.OrderByDescending(t => t.Deadline).ToList(),
                 _ => tasks.OrderBy(t => t.Title?.Trim() ?? "").ToList()
@@ -75,15 +76,14 @@ namespace CyberProjekt.Controllers
             return View(tasks);
         }
 
-
-        [Authorize]
+        [Authorize(Roles = "Administrator,Pracownik")]
         public async Task<IActionResult> MyTasks(string sortOrder, string search)
         {
             ViewBag.CurrentSort = sortOrder;
             ViewBag.Search = search;
 
-            ViewBag.TitleSort = String.IsNullOrEmpty(sortOrder) ? "title_desc" : "";
-            ViewBag.ProjectSort = String.IsNullOrEmpty(sortOrder) ? "project_desc" : "";
+            ViewBag.TitleSort = string.IsNullOrEmpty(sortOrder) ? "title_desc" : "";
+            ViewBag.ProjectSort = string.IsNullOrEmpty(sortOrder) ? "project_desc" : "";
             ViewBag.DateSort = sortOrder == "date" ? "date_desc" : "date";
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -92,7 +92,8 @@ namespace CyberProjekt.Controllers
                 .Include(t => t.AssignedUser)
                 .Where(p => p.AssignedUserId == userId)
                 .ToListAsync();
-            if (!String.IsNullOrEmpty(search))
+
+            if (!string.IsNullOrEmpty(search))
             {
                 var searchTerms = search.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 foreach (var term in searchTerms)
@@ -109,13 +110,12 @@ namespace CyberProjekt.Controllers
                     ).ToList();
                 }
             }
+
             myTasks = sortOrder switch
             {
                 "project" => myTasks.OrderBy(t => t.Project?.Name?.Trim() ?? "").ToList(),
                 "project_desc" => myTasks.OrderByDescending(t => t.Project?.Name?.Trim() ?? "").ToList(),
-
                 "title_desc" => myTasks.OrderByDescending(t => t.Title?.Trim() ?? "").ToList(),
-
                 "date" => myTasks.OrderBy(t => t.Deadline).ToList(),
                 "date_desc" => myTasks.OrderByDescending(t => t.Deadline).ToList(),
                 _ => myTasks.OrderBy(t => t.Title?.Trim() ?? "").ToList()
@@ -124,30 +124,29 @@ namespace CyberProjekt.Controllers
             return View(myTasks);
         }
 
-        [Authorize]
+        [Authorize(Roles = "Administrator,Pracownik")]
         [HttpGet]
         public IActionResult Create(int? projectId)
         {
             ViewBag.ProjectId = new SelectList(_context.Projects, "ProjectId", "Name", projectId);
-            var users = _context.Users.Select(u => new {
+            var users = _context.Users.Select(u => new
+            {
                 Id = u.Id,
                 DisplayName = $"{u.FirstName} {u.LastName} - {u.UserName}"
             }).ToList();
 
             ViewBag.AssignedUserId = new SelectList(users, "Id", "DisplayName");
-
             ViewBag.SelectedProjectId = projectId;
             if (projectId.HasValue)
             {
-                var project = _context.Projects
-                    .FirstOrDefault(p => p.ProjectId == projectId);
-
+                var project = _context.Projects.FirstOrDefault(p => p.ProjectId == projectId);
                 ViewBag.ProjectName = project?.Name;
             }
+
             return View();
         }
 
-        [Authorize]
+        [Authorize(Roles = "Administrator,Pracownik")]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(ProjectTask task)
@@ -163,6 +162,7 @@ namespace CyberProjekt.Controllers
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
+
             var users = _context.Users.Select(u => new
             {
                 Id = u.Id,
@@ -175,7 +175,7 @@ namespace CyberProjekt.Controllers
 
             return View(task);
         }
-        [Authorize]
+
         [HttpGet]
         public async Task<IActionResult> Details(int id)
         {
@@ -204,7 +204,6 @@ namespace CyberProjekt.Controllers
             ViewBag.AssignedUserId = new SelectList(users, "Id", "FullName", task.AssignedUserId);
 
             var activities = new List<ActivityViewModel>();
-            // Dodaj zmiany statusu
             activities.AddRange(task.Histories.Select(h => new ActivityViewModel
             {
                 Date = h.ChangeDate,
@@ -215,7 +214,6 @@ namespace CyberProjekt.Controllers
                 IsComment = false
             }));
 
-            // Dodaj komentarze
             activities.AddRange(task.Comments.Select(c => new ActivityViewModel
             {
                 Date = c.CreatedAt,
@@ -231,18 +229,15 @@ namespace CyberProjekt.Controllers
                 History = task.Histories.OrderByDescending(h => h.ChangeDate).ToList(),
                 Activities = activities.OrderByDescending(a => a.Date).ToList()
             };
+
             ViewBag.UsersDictionary = await _context.Users
                 .ToDictionaryAsync(u => u.Id, u => $"{u.FirstName} {u.LastName}");
-            ViewBag.ReturnUrl = Url.Action(
-                "Details",
-                "ProjectTask",
-                new { id = task.TaskId 
-            });
+            ViewBag.ReturnUrl = Url.Action("Details", "ProjectTask", new { id = task.TaskId });
 
             return View(viewModel);
         }
 
-        [Authorize]
+        [Authorize(Roles = "Administrator,Pracownik")]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateStatus(int id, Models.TaskStatus status)
@@ -253,12 +248,13 @@ namespace CyberProjekt.Controllers
             var history = new TaskHistory
             {
                 TaskId = id,
-                ChangedBy = $"{User.FindFirstValue("FirstName")} {User.FindFirstValue("LastName")}" ?? "System",
+                ChangedBy = $"{User.FindFirstValue("FirstName")} {User.FindFirstValue("LastName")}".Trim(),
                 ActionDescription = "Zmiana statusu",
                 OldValue = task.Status.ToString(),
                 NewValue = status.ToString(),
                 ChangeDate = DateTime.Now
             };
+            if (string.IsNullOrEmpty(history.ChangedBy)) history.ChangedBy = "System";
 
             task.Status = status;
             task.Updated = DateTime.Now;
@@ -270,7 +266,7 @@ namespace CyberProjekt.Controllers
             return RedirectToAction(nameof(Details), new { id = id });
         }
 
-        [Authorize]
+        [Authorize(Roles = "Administrator,Pracownik")]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> InlineEdit(int id, string title, string description, Models.TaskStatus? status, string assignedUserId, DateTime? deadline, Models.TaskPriority? priority)
@@ -279,11 +275,12 @@ namespace CyberProjekt.Controllers
             if (task == null) return NotFound();
 
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var isAdmin = User.IsInRole("Admin");
-            var isAuthor = task.CreatorId == currentUserId; // dopasuj do swojej nazwy pola autora w bazie
+            var isAdmin = User.IsInRole("Administrator");
+            var isAuthor = task.CreatorId == currentUserId;
             var isAssigned = task.AssignedUserId == currentUserId;
 
-            var changerName = $"{User.FindFirstValue("FirstName")} {User.FindFirstValue("LastName")}" ?? "Użytkownik";
+            var changerName = $"{User.FindFirstValue("FirstName")} {User.FindFirstValue("LastName")}".Trim();
+            if (string.IsNullOrEmpty(changerName)) changerName = "Użytkownik";
 
             if (!isAdmin && !isAuthor && !isAssigned)
             {
@@ -305,7 +302,6 @@ namespace CyberProjekt.Controllers
                 });
                 isUpdated = true;
             }
-
 
             if (isAdmin || isAuthor)
             {
@@ -329,14 +325,15 @@ namespace CyberProjekt.Controllers
             }
 
             string returnUrl = Request.Headers["Referer"].ToString();
-            if (!string.IsNullOrEmpty(returnUrl))
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
             {
                 return Redirect(returnUrl);
             }
 
             return RedirectToAction(nameof(Details), new { id = id });
         }
-        [Authorize]
+
+        [Authorize(Roles = "Administrator,Pracownik")]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(int id)
@@ -344,15 +341,13 @@ namespace CyberProjekt.Controllers
             var task = await _context.Tasks.FirstOrDefaultAsync(t => t.TaskId == id);
             if (task == null) return NotFound();
 
-            // Sprawdzenie uprawnień (Admin, Autor lub Przypisany)
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var isAdmin = User.IsInRole("Admin");
+            var isAdmin = User.IsInRole("Administrator");
             var isAuthor = task.CreatorId == currentUserId;
             var isAssigned = task.AssignedUserId == currentUserId;
 
             if (!isAdmin && !isAuthor && !isAssigned) return Forbid();
 
-            // Logika miękkiego usuwania
             task.Status = Models.TaskStatus.Removed;
             task.IsDeleted = true;
             task.Updated = DateTime.Now;

@@ -1,126 +1,366 @@
 ﻿@model CyberProjekt.Models.ViewModels.DashboardViewModel
+@using System.Security.Claims
+@using System.Text.Json
+@using CyberProjekt.Models
 @{
     ViewData["Title"] = "Panel Główny";
+    var isGuest = User.IsInRole("Gość");
+    var guestProjects = ViewBag.AllProjectsForGuest as List<Project> ?? new List<Project>();
+
+    var guestProjectsPayload = guestProjects.Select(p =>
+    {
+        var validTasks = (p.Tasks ?? new List<ProjectTask>())
+            .Where(t => t.Status != CyberProjekt.Models.TaskStatus.Removed)
+            .ToList();
+        var newCount = validTasks.Count(t => t.Status == CyberProjekt.Models.TaskStatus.New);
+        var inProgressCount = validTasks.Count(t => t.Status == CyberProjekt.Models.TaskStatus.InProgress);
+        var inVerificationCount = validTasks.Count(t => t.Status == CyberProjekt.Models.TaskStatus.InVerification);
+        var doneCount = validTasks.Count(t => t.Status == CyberProjekt.Models.TaskStatus.Done);
+        var overdueCount = validTasks.Count(t => t.Status != CyberProjekt.Models.TaskStatus.Done && t.Deadline < DateTime.Now);
+        var progress = validTasks.Count > 0 ? (int)Math.Round((double)doneCount / validTasks.Count * 100) : 0;
+
+        return new
+        {
+            id = p.ProjectId,
+            name = p.Name,
+            total = validTasks.Count,
+            newTasks = newCount,
+            inProgress = inProgressCount,
+            inVerification = inVerificationCount,
+            done = doneCount,
+            overdue = overdueCount,
+            progress = progress
+        };
+    }).ToList();
 }
-@using System.Security.Claims
+
 <div class="container mt-3">
     <div class="d-flex align-items-center justify-content-between mb-3">
         <div>
-            <h3 class="text-white fw-bold">Panel Główny</h3>
-            <p class="text-muted mb-0">Witaj ponownie, @(User.FindFirst("FirstName")?.Value). Sprawdź status swoich zadań.</p>
+            <h3 class="text-white fw-bold">@(isGuest ? "Przegląd projektów i postępu prac" : "Panel Główny")</h3>
+            <p class="text-muted mb-0">
+                @if (isGuest)
+                {
+                    <span>Witaj, @(User.FindFirst("FirstName")?.Value). Zaznacz projekty po lewej stronie, aby filtrować statystyki zadań.</span>
+                }
+                else
+                {
+                    <span>Witaj ponownie, @(User.FindFirst("FirstName")?.Value). Sprawdź status swoich zadań.</span>
+                }
+            </p>
         </div>
         <div class="text-end">
             <span class="badge bg-secondary text-dark">Data: @DateTime.Now.ToString("dd.MM.yyyy")</span>
         </div>
     </div>
 
-        <!-- Kafelki -->
-    <div class="row g-2 mb-4">
-        <div class="col-md-3"><div class="card p-3"><small class="text-muted">WSZYSTKIE ZADANIA</small><h2 class="mt-2">@Model.AllTasksCount</h2></div></div>
-        <div class="col-md-3"><div class="card p-3"><small class="text-muted">W REALIZACJI</small><h2 class="mt-2 text-primary">@Model.InProgressTasksCount</h2></div></div>
-        <div class="col-md-3"><div class="card p-3"><small class="text-muted">PRZETERMINOWANE</small><h2 class="mt-2 text-danger">@Model.OverdueTasksCount</h2></div></div>
-        <div class="col-md-3"><div class="card p-3"><small class="text-muted">ZAKOŃCZONE</small><h2 class="mt-2 text-success">@Model.CompletedTasksCount</h2></div></div>
-    </div>
-
-    <div class="row g-4 mb-5">
-        <div class="col-md-8">
-            <div class="card p-4 bg-slate-800 border-0 h-100">
-                <h4 class="mb-4 text-white">Zadania w moich projektach</h4>
-                <canvas id="projectChart" style="max-height: 300px;"></canvas>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card p-3 h-100">
-                <h4 class="mb-3">Postęp projektów</h4>
-                @foreach (var proj in Model.ProjectsProgress)
-                {
-                    <div class="mb-2">
-                        <div class="d-flex justify-content-between mb-1">
-                            <span class="text-white">@proj.Name</span>
-                            <span class="text-muted">@proj.Progress%</span>
-                        </div>
-                        <div class="progress" style="height: 8px; background-color: #334155;">
-                            <div class="progress-bar bg-primary" role="progressbar"
-                                 style="width: @proj.Progress%;"
-                                 aria-valuenow="@proj.Progress" aria-valuemin="0" aria-valuemax="100">
-                            </div>
+    @if (isGuest)
+    {
+        <div class="row g-4 mb-5">
+            <!-- LEWA KOLUMNA: Lista projektów z checkboxami -->
+            <div class="col-lg-4">
+                <div class="card p-4 border-0 shadow-sm h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-white fw-bold m-0">
+                            <i class="bi bi-folder2-open me-2 text-primary"></i>Projekty (@guestProjects.Count)
+                        </h5>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" id="btnSelectAllProjects" class="btn btn-outline-light">Wszystkie</button>
+                            <button type="button" id="btnClearAllProjects" class="btn btn-outline-secondary">Żaden</button>
                         </div>
                     </div>
-                }
+
+                    @if (guestProjects.Any())
+                    {
+                        <div class="list-group list-group-flush" style="max-height: 540px; overflow-y: auto;">
+                            @foreach (var proj in guestProjectsPayload)
+                            {
+                                <label class="list-group-item bg-transparent text-white border-secondary px-2 py-3 d-flex align-items-center justify-content-between gap-2"
+                                       style="cursor: pointer;">
+                                    <div class="d-flex align-items-center gap-2 text-truncate">
+                                        <input class="form-check-input project-filter-checkbox mt-0"
+                                               type="checkbox"
+                                               value="@proj.id"
+                                               checked />
+                                        <div class="text-truncate">
+                                            <div class="fw-semibold text-truncate">@proj.name</div>
+                                            <small class="text-muted">Zadań: @proj.total • Ukończono: @proj.progress%</small>
+                                        </div>
+                                    </div>
+                                    <a asp-controller="Project" asp-action="Details" asp-route-id="@proj.id"
+                                       class="btn btn-sm btn-outline-info flex-shrink-0"
+                                       title="Podgląd projektu"
+                                       onclick="event.stopPropagation();">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </label>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-0">Brak projektów w systemie.</p>
+                    }
+                </div>
+            </div>
+
+            <!-- PRAWA KOLUMNA: Dashboard z progresem zadań -->
+            <div class="col-lg-8">
+                <!-- Kafelki podsumowania -->
+                <div class="row g-2 mb-4">
+                    <div class="col-6 col-md-3">
+                        <div class="card p-3">
+                            <small class="text-muted">WSZYSTKIE ZADANIA</small>
+                            <h2 id="guestTotalTasks" class="mt-2">@Model.AllTasksCount</h2>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card p-3">
+                            <small class="text-muted">W REALIZACJI</small>
+                            <h2 id="guestInProgressTasks" class="mt-2 text-primary">@Model.InProgressTasksCount</h2>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card p-3">
+                            <small class="text-muted">PRZETERMINOWANE</small>
+                            <h2 id="guestOverdueTasks" class="mt-2 text-danger">@Model.OverdueTasksCount</h2>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card p-3">
+                            <small class="text-muted">ZAKOŃCZONE</small>
+                            <h2 id="guestDoneTasks" class="mt-2 text-success">@Model.CompletedTasksCount</h2>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Wykres statusów -->
+                <div class="card p-4 bg-slate-800 border-0 mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0 text-white">Zadania w wybranych projektach</h5>
+                        <a asp-controller="ProjectTask" asp-action="Index" class="btn btn-sm btn-outline-light">
+                            Lista wszystkich zadań
+                        </a>
+                    </div>
+                    <div style="height: 280px;">
+                        <canvas id="projectChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Paski postępu dla zaznaczonych projektów -->
+                <div class="card p-4 border-0">
+                    <h5 class="mb-3 text-white">Postęp zaznaczonych projektów</h5>
+                    <div id="guestProjectsProgressList"></div>
+                </div>
             </div>
         </div>
-    </div>
-    <div class="card p-3 mt-2">
-        <h4 class="mb-2">Najpilniejsze zadania</h4>
-        <div class="table-responsive">
-            <table class="table table-dark table-sm table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th>Zadanie</th>
-                        <th>Projekt</th>
-                        <th>Termin</th>
-                        <th>Akcja</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var task in Model.UrgentTasks)
-                    {
-                        <tr>
-                            <td>@task.Title</td>
-                            <td>@(task.Project?.Name ?? "Brak")</td>
-                            <td class="@(task.Deadline < DateTime.Now ? "text-danger" : "")">
-                                @task.Deadline.ToString("dd.MM.yyyy")
-                            </td>
-                            <td>
-                                <a asp-controller="ProjectTask" asp-action="Details" asp-route-id="@task.TaskId"
-                                   class="btn btn-sm btn-outline-light">Zobacz</a>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+    }
+    else
+    {
+        <!-- Standardowy widok dla Administratora i Pracownika -->
+        <div class="row g-2 mb-4">
+            <div class="col-md-3"><div class="card p-3"><small class="text-muted">WSZYSTKIE ZADANIA</small><h2 class="mt-2">@Model.AllTasksCount</h2></div></div>
+            <div class="col-md-3"><div class="card p-3"><small class="text-muted">W REALIZACJI</small><h2 class="mt-2 text-primary">@Model.InProgressTasksCount</h2></div></div>
+            <div class="col-md-3"><div class="card p-3"><small class="text-muted">PRZETERMINOWANE</small><h2 class="mt-2 text-danger">@Model.OverdueTasksCount</h2></div></div>
+            <div class="col-md-3"><div class="card p-3"><small class="text-muted">ZAKOŃCZONE</small><h2 class="mt-2 text-success">@Model.CompletedTasksCount</h2></div></div>
         </div>
-    </div>
+
+        <div class="row g-4 mb-5">
+            <div class="col-md-8">
+                <div class="card p-4 bg-slate-800 border-0 h-100">
+                    <h4 class="mb-4 text-white">Zadania w moich projektach</h4>
+                    <canvas id="projectChart" style="max-height: 300px;"></canvas>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card p-3 h-100">
+                    <h4 class="mb-3">Postęp projektów</h4>
+                    @foreach (var proj in Model.ProjectsProgress)
+                    {
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-white">@proj.Name</span>
+                                <span class="text-muted">@proj.Progress%</span>
+                            </div>
+                            <div class="progress" style="height: 8px; background-color: #334155;">
+                                <div class="progress-bar bg-primary" role="progressbar"
+                                     style="width: @proj.Progress%;"
+                                     aria-valuenow="@proj.Progress" aria-valuemin="0" aria-valuemax="100">
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="card p-3 mt-2">
+            <h4 class="mb-2">Najpilniejsze zadania</h4>
+            <div class="table-responsive">
+                <table class="table table-dark table-sm table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Zadanie</th>
+                            <th>Projekt</th>
+                            <th>Termin</th>
+                            <th>Akcja</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var task in Model.UrgentTasks)
+                        {
+                            <tr>
+                                <td>@task.Title</td>
+                                <td>@(task.Project?.Name ?? "Brak")</td>
+                                <td class="@(task.Deadline < DateTime.Now ? "text-danger" : "")">
+                                    @task.Deadline.ToString("dd.MM.yyyy")
+                                </td>
+                                <td>
+                                    <a asp-controller="ProjectTask" asp-action="Details" asp-route-id="@task.TaskId"
+                                       class="btn btn-sm btn-outline-light">Zobacz</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
 </div>
 
 @section Scripts {
-    <script>
-        const ctx = document.getElementById('projectChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: @Json.Serialize(Model.ProjectNames),
-                datasets: [
-                    { label: 'Nowe', data: @Json.Serialize(Model.NewTasks), backgroundColor: '#6366f1' },
-                    { label: 'W trakcie', data: @Json.Serialize(Model.InProgressTasks), backgroundColor: '#eab308' },
-                    { label: 'W weryfikacji', data: @Json.Serialize(Model.InVerificationTasks), backgroundColor: '#f97316' },
-                    { label: 'Zrobione', data: @Json.Serialize(Model.DoneTasks), backgroundColor: '#22c55e' }
-                ]
-            },
-           options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        stacked: false,
-                        ticks: { color: '#ffffff' }, // Kolor etykiet osi X
-                        grid: { color: '#ffffff' }   // Kolor linii siatki osi X
+    @if (isGuest)
+    {
+        <script>
+            (function () {
+                const allProjectsData = @Html.Raw(JsonSerializer.Serialize(guestProjectsPayload));
+                const checkboxes = Array.from(document.querySelectorAll('.project-filter-checkbox'));
+                const progressContainer = document.getElementById('guestProjectsProgressList');
+
+                const ctx = document.getElementById('projectChart').getContext('2d');
+                const chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: [],
+                        datasets: [
+                            { label: 'Nowe', data: [], backgroundColor: '#6366f1' },
+                            { label: 'W trakcie', data: [], backgroundColor: '#eab308' },
+                            { label: 'W weryfikacji', data: [], backgroundColor: '#f97316' },
+                            { label: 'Zrobione', data: [], backgroundColor: '#22c55e' }
+                        ]
                     },
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            precision: 0,
-                            stepSize: 1,
-                            color: '#ffffff'        // Kolor etykiet osi Y
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                ticks: { color: '#ffffff' },
+                                grid: { color: 'rgba(255,255,255,0.1)' }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                ticks: { precision: 0, stepSize: 1, color: '#ffffff' },
+                                grid: { color: 'rgba(255,255,255,0.1)' }
+                            }
                         },
-                        grid: { color: '#ffffff' }   // Kolor linii siatki osi Y
+                        plugins: {
+                            legend: { labels: { color: '#ffffff' } }
+                        }
                     }
-                },
-                plugins: {
-                    legend: { labels: { color: '#ffffff' } }
+                });
+
+                function updateGuestDashboard() {
+                    const selectedIds = new Set(
+                        checkboxes.filter(cb => cb.checked).map(cb => parseInt(cb.value, 10))
+                    );
+                    const selected = allProjectsData.filter(p => selectedIds.has(p.id));
+
+                    document.getElementById('guestTotalTasks').textContent = selected.reduce((s, p) => s + p.total, 0);
+                    document.getElementById('guestInProgressTasks').textContent = selected.reduce((s, p) => s + p.inProgress, 0);
+                    document.getElementById('guestOverdueTasks').textContent = selected.reduce((s, p) => s + p.overdue, 0);
+                    document.getElementById('guestDoneTasks').textContent = selected.reduce((s, p) => s + p.done, 0);
+
+                    chart.data.labels = selected.map(p => p.name);
+                    chart.data.datasets[0].data = selected.map(p => p.newTasks);
+                    chart.data.datasets[1].data = selected.map(p => p.inProgress);
+                    chart.data.datasets[2].data = selected.map(p => p.inVerification);
+                    chart.data.datasets[3].data = selected.map(p => p.done);
+                    chart.update();
+
+                    if (selected.length === 0) {
+                        progressContainer.innerHTML = '<p class="text-muted mb-0">Zaznacz co najmniej jeden projekt po lewej stronie, aby zobaczyć postęp.</p>';
+                        return;
+                    }
+
+                    progressContainer.innerHTML = selected.map(p => `
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-white">${p.name}</span>
+                                <span class="text-muted">${p.done}/${p.total} (${p.progress}%)</span>
+                            </div>
+                            <div class="progress" style="height: 8px; background-color: #334155;">
+                                <div class="progress-bar bg-primary" role="progressbar" style="width: ${p.progress}%;"></div>
+                            </div>
+                        </div>
+                    `).join('');
                 }
-            }
-        });
-    </script>
+
+                checkboxes.forEach(cb => cb.addEventListener('change', updateGuestDashboard));
+
+                document.getElementById('btnSelectAllProjects')?.addEventListener('click', () => {
+                    checkboxes.forEach(cb => cb.checked = true);
+                    updateGuestDashboard();
+                });
+
+                document.getElementById('btnClearAllProjects')?.addEventListener('click', () => {
+                    checkboxes.forEach(cb => cb.checked = false);
+                    updateGuestDashboard();
+                });
+
+                updateGuestDashboard();
+            })();
+        </script>
+    }
+    else
+    {
+        <script>
+            const ctx = document.getElementById('projectChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: @Json.Serialize(Model.ProjectNames),
+                    datasets: [
+                        { label: 'Nowe', data: @Json.Serialize(Model.NewTasks), backgroundColor: '#6366f1' },
+                        { label: 'W trakcie', data: @Json.Serialize(Model.InProgressTasks), backgroundColor: '#eab308' },
+                        { label: 'W weryfikacji', data: @Json.Serialize(Model.InVerificationTasks), backgroundColor: '#f97316' },
+                        { label: 'Zrobione', data: @Json.Serialize(Model.DoneTasks), backgroundColor: '#22c55e' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            stacked: false,
+                            ticks: { color: '#ffffff' },
+                            grid: { color: '#ffffff' }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0,
+                                stepSize: 1,
+                                color: '#ffffff'
+                            },
+                            grid: { color: '#ffffff' }
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#ffffff' } }
+                    }
+                }
+            });
+        </script>
+    }
 }

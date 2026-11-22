@@ -1,118 +1,311 @@
 ﻿@model IEnumerable<CyberProjekt.Models.User>
+@using CyberProjekt.Controllers
 @using CyberProjekt.Models
 @using Microsoft.AspNetCore.Identity
+@using System.Globalization
 @inject UserManager<CyberProjekt.Models.User> UserManager
-
-@if (TempData["Error"] != null)
-{
-    <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
-        <strong>Błąd!</strong> @TempData["Error"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
+@{
+    ViewData["Title"] = "Panel Administratora";
+    var policy = ViewBag.SecurityPolicy as SecurityPolicy ?? new SecurityPolicy();
 }
 
 <div class="container mt-4">
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <strong>Błąd!</strong> @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (TempData["GeneratedCode"] != null)
+    {
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div>
+                    <i class="bi bi-key-fill me-2"></i>
+                    <strong>8-cyfrowy kod jednorazowy</strong> dla użytkownika <strong>@TempData["GeneratedCodeUser"]</strong> (ważny 1 godzinę):
+                    <span class="badge bg-dark text-warning fs-5 ms-2 px-3 py-2" style="letter-spacing: 3px;">@TempData["GeneratedCode"]</span>
+                </div>
+                <small class="text-dark">Zapisz lub przekaż kod użytkownikowi — nie będzie wyświetlany ponownie.</small>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="text-white">Użytkownicy</h2>
-            <p class="text-muted">@Model.Count() członków zespołu w systemie</p>
+            <h2 class="text-white mb-1">Panel Administratora</h2>
+            <p class="text-muted mb-0">@Model.Count() członków zespołu w systemie</p>
         </div>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
             + Dodaj użytkownika
         </button>
     </div>
 
-    <div class="card border-0 shadow-sm overflow-hidden">
-        <div class="table-responsive">
-            <table class="table table-dark table-hover align-middle mb-0">
-                <thead style="background: #1e293b; color: #ffffff;">
-                    <tr class="text-muted border-bottom border-secondary">
-                        <th class="ps-4">UŻYTKOWNIK</th>
-                        <th>E-MAIL</th>
-                        <th>ROLA</th>
-                        <th>PRZYPISANE ZADANIA</th>
-                        <th>W REALIZACJI</th>
-                        <th>ZAKOŃCZONE</th>
-                        <th>AKCJE</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var user in Model)
-                    {
-                        var tasks = user.AssignedTasks ?? new List<ProjectTask>();
-                        var inProgress = tasks.Count(t => t.Status == CyberProjekt.Models.TaskStatus.InProgress);
-                        var completed = tasks.Count(t => t.Status == CyberProjekt.Models.TaskStatus.Done);
-                        var roles = await UserManager.GetRolesAsync(user);
-                        var roleDisplay = roles.FirstOrDefault() ?? "Brak";
-                        var roleBadgeClass = roleDisplay switch
-                        {
-                            "Administrator" => "bg-danger",
-                            "Pracownik" => "bg-primary",
-                            "Gość" => "bg-secondary",
-                            _ => "bg-dark"
-                        };
+    <!-- Zakładki -->
+    <ul class="nav nav-tabs border-secondary mb-3" id="adminTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active bg-transparent text-white border-secondary" id="users-tab"
+                    data-bs-toggle="tab" data-bs-target="#users-pane" type="button" role="tab">
+                <i class="bi bi-people me-1"></i> Zarządzanie użytkownikami
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link bg-transparent text-muted border-secondary" id="policy-tab"
+                    data-bs-toggle="tab" data-bs-target="#policy-pane" type="button" role="tab">
+                <i class="bi bi-shield-check me-1"></i> Polityka bezpieczeństwa
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link bg-transparent text-muted border-secondary" id="stats-tab"
+                    data-bs-toggle="tab" data-bs-target="#stats-pane" type="button" role="tab">
+                <i class="bi bi-bar-chart me-1"></i> Statystyki zadań
+            </button>
+        </li>
+    </ul>
 
-                        <tr class="align-middle border-bottom border-secondary">
-                            <td class="d-flex align-items-center gap-3 ps-4 py-3">
-                                <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                                    <span class="fw-bold">
-                                        @(string.IsNullOrEmpty(user.FirstName) ? "?" : user.FirstName.Substring(0, 1))@(string.IsNullOrEmpty(user.LastName) ? "" : user.LastName.Substring(0, 1))
-                                    </span>
-                                </div>
-                                <div>
-                                    <div class="fw-bold">@user.FirstName @user.LastName</div>
-                                    <div class="small text-muted">@user.UserName</div>
-                                </div>
-                            </td>
-                            <td class="text-muted">@user.Email</td>
-                            <td>
-                                <span class="badge @roleBadgeClass bg-opacity-25 text-light">
-                                    @roleDisplay
-                                </span>
-                            </td>
-                            <td class="fw-bold">@tasks.Count()</td>
-                            <td>
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="fw-bold">@inProgress</span>
-                                    <div class="progress" style="width: 60px; height: 4px;">
-                                        <div class="progress-bar" style="width: @(tasks.Count() > 0 ? (inProgress * 100 / tasks.Count()) : 0)%"></div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="fw-bold text-success">@completed</span>
-                                    <div class="progress" style="width: 60px; height: 4px;">
-                                        <div class="progress-bar bg-success" style="width: @(tasks.Count() > 0 ? (completed * 100 / tasks.Count()) : 0)%"></div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="align-middle">
-                                <div class="actions-container">
-                                    <button type="button" class="btn btn-sm btn-edit"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#editRoleModal"
-                                            data-id="@user.Id"
-                                            data-name="@user.FirstName @user.LastName"
-                                            data-role="@roleDisplay"
-                                            onclick="prepareEditModal(this)">
-                                        Edytuj rolę
-                                    </button>
+    <div class="tab-content" id="adminTabsContent">
+        <!-- ZAKŁADKA 1: Zarządzanie użytkownikami -->
+        <div class="tab-pane fade show active" id="users-pane" role="tabpanel">
+            <div class="card border-0 shadow-sm overflow-hidden">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover align-middle mb-0">
+                        <thead style="background: #1e293b; color: #ffffff;">
+                            <tr class="text-muted border-bottom border-secondary">
+                                <th class="ps-4">UŻYTKOWNIK</th>
+                                <th>E-MAIL</th>
+                                <th>ROLA</th>
+                                <th>STATUS</th>
+                                <th>AKCJE</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var user in Model)
+                            {
+                                var roles = await UserManager.GetRolesAsync(user);
+                                var roleDisplay = roles.FirstOrDefault() ?? "Brak";
+                                var roleBadgeClass = roleDisplay switch
+                                {
+                                    "Administrator" => "bg-danger",
+                                    "Pracownik" => "bg-primary",
+                                    "Gość" => "bg-secondary",
+                                    _ => "bg-dark"
+                                };
+                                var isBuiltInAdmin = string.Equals(user.UserName, "ADMIN", StringComparison.OrdinalIgnoreCase);
+                                var requiresPasswordChange = AdminController.RequiresPasswordChange(user, policy);
 
-                                    <form asp-action="DeleteUser" method="post" class="d-inline">
-                                        <input type="hidden" name="id" value="@user.Id" />
-                                        <button type="submit" class="btn btn-action btn-delete"
-                                                onclick="return confirm('Czy na pewno chcesz usunąć tego użytkownika?');">
-                                            <i class="bi bi-trash"></i>
-                                            Usuń
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+                                <tr class="align-middle border-bottom border-secondary">
+                                    <td class="d-flex align-items-center gap-3 ps-4 py-3">
+                                        <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                            <span class="fw-bold">
+                                                @(string.IsNullOrEmpty(user.FirstName) ? "?" : user.FirstName.Substring(0, 1))@(string.IsNullOrEmpty(user.LastName) ? "" : user.LastName.Substring(0, 1))
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold">@user.FirstName @user.LastName</div>
+                                            <div class="small text-muted">@user.UserName</div>
+                                        </div>
+                                    </td>
+                                    <td class="text-muted">@user.Email</td>
+                                    <td>
+                                        <span class="badge @roleBadgeClass bg-opacity-25 text-light">@roleDisplay</span>
+                                    </td>
+                                    <td>
+                                        @if (user.IsBlocked)
+                                        {
+                                            <span class="badge bg-danger">Zablokowany</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success bg-opacity-75">Aktywny</span>
+                                        }
+                                        @if (requiresPasswordChange)
+                                        {
+                                            <span class="badge bg-warning text-dark ms-1">Zmiana hasła</span>
+                                        }
+                                    </td>
+                                    <td class="align-middle">
+                                        <div class="d-flex flex-wrap gap-2">
+                                            <button type="button" class="btn btn-sm btn-edit"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#editUserModal"
+                                                    data-id="@user.Id"
+                                                    data-username="@user.UserName"
+                                                    data-firstname="@user.FirstName"
+                                                    data-lastname="@user.LastName"
+                                                    data-email="@user.Email"
+                                                    data-role="@roleDisplay"
+                                                    data-isadmin="@isBuiltInAdmin.ToString().ToLower()"
+                                                    onclick="prepareEditUserModal(this)">
+                                                <i class="bi bi-pencil"></i> Edytuj
+                                            </button>
+
+                                            <form asp-action="GenerateOneTimeCode" method="post" class="d-inline">
+                                                <input type="hidden" name="id" value="@user.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-info"
+                                                        onclick="return confirm('Wygenerować nowy 8-cyfrowy kod jednorazowy (ważny 1 h) dla @user.UserName?');">
+                                                    <i class="bi bi-key"></i> Kod OTP
+                                                </button>
+                                            </form>
+
+                                            @if (!isBuiltInAdmin)
+                                            {
+                                                <form asp-action="ToggleBlock" method="post" class="d-inline">
+                                                    <input type="hidden" name="id" value="@user.Id" />
+                                                    <button type="submit" class="btn btn-sm @(user.IsBlocked ? "btn-outline-success" : "btn-outline-warning")">
+                                                        <i class="bi @(user.IsBlocked ? "bi-unlock" : "bi-lock")"></i>
+                                                        @(user.IsBlocked ? "Odblokuj" : "Zablokuj")
+                                                    </button>
+                                                </form>
+
+                                                <form asp-action="DeleteUser" method="post" class="d-inline">
+                                                    <input type="hidden" name="id" value="@user.Id" />
+                                                    <button type="submit" class="btn btn-action btn-delete"
+                                                            onclick="return confirm('Czy na pewno chcesz usunąć użytkownika @user.UserName?');">
+                                                        <i class="bi bi-trash"></i> Usuń
+                                                    </button>
+                                                </form>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ZAKŁADKA 2: Polityka bezpieczeństwa -->
+        <div class="tab-pane fade" id="policy-pane" role="tabpanel">
+            <div class="card p-4 shadow-sm" style="max-width: 720px;">
+                <h5 class="fw-bold text-white mb-1">Polityka haseł i sesji (Wariant 8)</h5>
+                <p class="small text-muted mb-4">
+                    Parametry obowiązują podczas zmiany hasła przez użytkowników oraz podczas logowania do systemu.
+                </p>
+
+                <form asp-action="UpdateSecurityPolicy" method="post">
+                    <div class="form-check form-switch mb-4">
+                        <input class="form-check-input" type="checkbox" role="switch" id="entropySwitch"
+                               name="isEntropyPolicyEnabled" value="true"
+                               @(policy.IsEntropyPolicyEnabled ? "checked" : "") />
+                        <label class="form-check-label text-white fw-semibold" for="entropySwitch">
+                            Wymagaj minimalnej entropii hasła (reguła z Wariantu 8)
+                        </label>
+                        <div class="small text-muted">
+                            Gdy opcja jest włączona, system odrzuca hasła o entropii niższej niż ustalony próg bitów.
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Minimalna długość hasła (znaki)</label>
+                            <input type="number" name="minPasswordLength" min="4" max="128"
+                                   value="@policy.MinPasswordLength"
+                                   class="form-control bg-dark text-white border-secondary" required />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Minimalna entropia hasła (bity)</label>
+                            <input type="number" step="any" name="minEntropyBits" min="10" max="256"
+                                   value="@policy.MinEntropyBits.ToString(CultureInfo.InvariantCulture)"
+                                   class="form-control bg-dark text-white border-secondary" required />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Ważność hasła (w dniach)</label>
+                            <input type="number" name="passwordMaxAgeDays" min="0" max="3650"
+                                   value="@policy.PasswordMaxAgeDays"
+                                   class="form-control bg-dark text-white border-secondary" required />
+                            <div class="form-text text-muted">Po tym czasie system wymusi ustawienie nowego hasła (0 = wymuś natychmiast).</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Czas bezczynności sesji (minuty)</label>
+                            <input type="number" name="sessionIdleTimeoutMinutes" min="1" max="1440"
+                                   value="@policy.SessionIdleTimeoutMinutes"
+                                   class="form-control bg-dark text-white border-secondary" required />
+                            <div class="form-text text-muted">Automatyczne wylogowanie po okresie bezczynności.</div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i> Zapisz ustawienia polityki
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ZAKŁADKA 3: Statystyki zadań -->
+        <div class="tab-pane fade" id="stats-pane" role="tabpanel">
+            <div class="card border-0 shadow-sm overflow-hidden">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover align-middle mb-0">
+                        <thead style="background: #1e293b; color: #ffffff;">
+                            <tr class="text-muted border-bottom border-secondary">
+                                <th class="ps-4">UŻYTKOWNIK</th>
+                                <th>ROLA</th>
+                                <th>PRZYPISANE ZADANIA</th>
+                                <th>W REALIZACJI</th>
+                                <th>ZAKOŃCZONE</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var user in Model)
+                            {
+                                var tasks = user.AssignedTasks ?? new List<ProjectTask>();
+                                var inProgress = tasks.Count(t => t.Status == CyberProjekt.Models.TaskStatus.InProgress);
+                                var completed = tasks.Count(t => t.Status == CyberProjekt.Models.TaskStatus.Done);
+                                var roles = await UserManager.GetRolesAsync(user);
+                                var roleDisplay = roles.FirstOrDefault() ?? "Brak";
+                                var roleBadgeClass = roleDisplay switch
+                                {
+                                    "Administrator" => "bg-danger",
+                                    "Pracownik" => "bg-primary",
+                                    "Gość" => "bg-secondary",
+                                    _ => "bg-dark"
+                                };
+
+                                <tr class="align-middle border-bottom border-secondary">
+                                    <td class="ps-4 py-3">
+                                        <div class="fw-bold">@user.FirstName @user.LastName</div>
+                                        <div class="small text-muted">@user.UserName</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge @roleBadgeClass bg-opacity-25 text-light">@roleDisplay</span>
+                                    </td>
+                                    <td class="fw-bold">@tasks.Count()</td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="fw-bold">@inProgress</span>
+                                            <div class="progress" style="width: 80px; height: 5px;">
+                                                <div class="progress-bar" style="width: @(tasks.Count() > 0 ? (inProgress * 100 / tasks.Count()) : 0)%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="fw-bold text-success">@completed</span>
+                                            <div class="progress" style="width: 80px; height: 5px;">
+                                                <div class="progress-bar bg-success" style="width: @(tasks.Count() > 0 ? (completed * 100 / tasks.Count()) : 0)%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -127,6 +320,10 @@
             </div>
             <form asp-controller="Admin" asp-action="CreateUser" method="post">
                 <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Login (unikalny)</label>
+                        <input name="Username" class="form-control bg-dark text-white border-secondary" required>
+                    </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label text-muted">Imię</label>
@@ -142,10 +339,6 @@
                         <input name="Email" type="email" class="form-control bg-dark text-white border-secondary" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label text-muted">Hasło początkowe</label>
-                        <input name="Password" type="password" class="form-control bg-dark text-white border-secondary" required>
-                    </div>
-                    <div class="mb-3">
                         <label class="form-label text-muted">Rola</label>
                         <select name="Role" class="form-control bg-dark text-white border-secondary" required>
                             <option value="" selected disabled hidden>Wybierz rolę</option>
@@ -153,6 +346,10 @@
                             <option value="Pracownik">Pracownik</option>
                             <option value="Gość">Gość</option>
                         </select>
+                    </div>
+                    <div class="small text-muted">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Po utworzeniu konta zostanie wygenerowany 8-cyfrowy kod jednorazowy (ważny 1 h), a użytkownik ustawi własne hasło przy pierwszym logowaniu.
                     </div>
                 </div>
                 <div class="modal-footer border-0">
@@ -163,21 +360,39 @@
     </div>
 </div>
 
-<!-- Modal zmiany roli -->
-<div class="modal fade" id="editRoleModal" tabindex="-1" aria-hidden="true">
+<!-- Modal edycji użytkownika (dane + rola) -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content card">
-            <form asp-action="ChangeRole" method="post">
-                <input type="hidden" name="id" id="editUserId" />
+            <form asp-action="EditUser" method="post">
+                <input type="hidden" name="id" id="editDataUserId" />
                 <div class="modal-header border-0">
-                    <h5 class="modal-title">Edytuj uprawnienia</h5>
+                    <h5 class="modal-title">Edytuj użytkownika (<span id="editDataUsername"></span>)</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="text-muted">Użytkownik: <span id="userNameDisplay" class="text-light fw-bold"></span></p>
-                    <label class="form-label text-muted">Nowa rola</label>
-                    <select id="roleSelect" name="newRole" class="form-control bg-dark text-white border-secondary" required>
-                    </select>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted">Imię</label>
+                            <input name="firstName" id="editDataFirstName" class="form-control bg-dark text-white border-secondary" required />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted">Nazwisko</label>
+                            <input name="lastName" id="editDataLastName" class="form-control bg-dark text-white border-secondary" required />
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Adres e-mail</label>
+                        <input name="email" id="editDataEmail" type="email" class="form-control bg-dark text-white border-secondary" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Rola w systemie</label>
+                        <select name="role" id="editDataRole" class="form-control bg-dark text-white border-secondary" required>
+                            <option value="Administrator">Administrator</option>
+                            <option value="Pracownik">Pracownik</option>
+                            <option value="Gość">Gość</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="modal-footer border-0">
                     <button type="submit" class="btn btn-primary w-100">Zapisz zmiany</button>
@@ -190,26 +405,47 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>
-        function prepareEditModal(button) {
-            const id = button.getAttribute('data-id');
-            const name = button.getAttribute('data-name');
-            const currentRole = button.getAttribute('data-role');
+        function prepareEditUserModal(button) {
+            document.getElementById('editDataUserId').value = button.getAttribute('data-id');
+            document.getElementById('editDataUsername').innerText = button.getAttribute('data-username');
+            document.getElementById('editDataFirstName').value = button.getAttribute('data-firstname');
+            document.getElementById('editDataLastName').value = button.getAttribute('data-lastname');
+            document.getElementById('editDataEmail').value = button.getAttribute('data-email');
 
-            document.getElementById('editUserId').value = id;
-            document.getElementById('userNameDisplay').innerText = name;
-
-            const select = document.getElementById('roleSelect');
-            select.innerHTML = '<option value="" selected disabled hidden>Wybierz rolę</option>';
-
-            const availableRoles = ['Administrator', 'Pracownik', 'Gość'];
-            availableRoles.forEach(role => {
-                if (role !== currentRole) {
-                    const option = document.createElement('option');
-                    option.value = role;
-                    option.textContent = role;
-                    select.appendChild(option);
-                }
-            });
+            const roleSelect = document.getElementById('editDataRole');
+            const roleValue = button.getAttribute('data-role');
+            if (roleValue && roleValue !== 'Brak') {
+                roleSelect.value = roleValue;
+            }
+            roleSelect.disabled = button.getAttribute('data-isadmin') === 'true';
         }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('#adminTabs button[data-bs-toggle="tab"]').forEach(tab => {
+                tab.addEventListener('shown.bs.tab', e => {
+                    document.querySelectorAll('#adminTabs button').forEach(btn => {
+                        btn.classList.remove('text-white');
+                        btn.classList.add('text-muted');
+                    });
+                    e.target.classList.remove('text-muted');
+                    e.target.classList.add('text-white');
+                });
+            });
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const requestedTab = urlParams.get('tab');
+            const tabMap = {
+                'users': '#users-tab',
+                'policy': '#policy-tab',
+                'stats': '#stats-tab'
+            };
+
+            if (requestedTab && tabMap[requestedTab]) {
+                const targetTabBtn = document.querySelector(tabMap[requestedTab]);
+                if (targetTabBtn && window.bootstrap) {
+                    bootstrap.Tab.getOrCreateInstance(targetTabBtn).show();
+                }
+            }
+        });
     </script>
 }

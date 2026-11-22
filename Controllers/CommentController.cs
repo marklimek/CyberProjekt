@@ -1,18 +1,18 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using System.Security.Claims;
 using CyberProjekt.Data;
 using CyberProjekt.Models;
 using CyberProjekt.Models.ViewModels;
-using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace CyberProjekt.Controllers
 {
+    [Authorize(Roles = "Administrator,Pracownik")]
     public class CommentController : Controller
     {
         private readonly AppDbContext _context;
         public CommentController(AppDbContext context) => _context = context;
 
-        [Authorize]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Add(TaskDetailsViewModel model, string? returnUrl)
@@ -34,20 +34,19 @@ namespace CyberProjekt.Controllers
             {
                 return LocalRedirect(returnUrl);
             }
-            return RedirectToAction("Details", "ProjectTask", new {id = model.Task.TaskId});
+            return RedirectToAction("Details", "ProjectTask", new { id = model.Task.TaskId });
         }
 
-        [Authorize]
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Delete(int commentId, string returnUrl)
+        public async Task<IActionResult> Delete(int commentId, string? returnUrl)
         {
             var comment = await _context.Comments.FindAsync(commentId);
             if (comment == null) return NotFound();
 
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (comment.UserId != currentUserId) return Forbid(); // Tylko autor
-            int taskId = comment.TaskId; // zapamiętaj ID zadania13
+            if (!User.IsInRole("Administrator") && comment.UserId != currentUserId) return Forbid();
+            int taskId = comment.TaskId;
 
             _context.Comments.Remove(comment);
             await _context.SaveChangesAsync();
@@ -56,23 +55,27 @@ namespace CyberProjekt.Controllers
                 return LocalRedirect(returnUrl);
             }
 
-            return RedirectToAction("Details", "ProjectTask", new {id = taskId });
+            return RedirectToAction("Details", "ProjectTask", new { id = taskId });
         }
 
-        [Authorize]
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int commentId, string newContent, string returnUrl)
+        public async Task<IActionResult> Edit(int commentId, string newContent, string? returnUrl)
         {
             var comment = await _context.Comments.FindAsync(commentId);
             if (comment == null) return NotFound();
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (comment.UserId != currentUserId) return Forbid(); // Tylko autor
+            if (!User.IsInRole("Administrator") && comment.UserId != currentUserId) return Forbid();
             comment.Content = newContent;
             comment.UpdatedAt = DateTime.Now;
             _context.Comments.Update(comment);
             await _context.SaveChangesAsync();
-            return LocalRedirect(returnUrl);
+
+            if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+            {
+                return LocalRedirect(returnUrl);
+            }
+            return RedirectToAction("Details", "ProjectTask", new { id = comment.TaskId });
         }
     }
 }

@@ -1,6 +1,9 @@
 ﻿@using System.Security.Claims
 @{
-    var currentAction = ViewContext.RouteData.Values["action"].ToString();
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
+    var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+    var isAdmin = User.IsInRole("Administrator");
+    var isGuest = User.IsInRole("Gość");
 }
 
 <thead>
@@ -27,6 +30,8 @@
 <tbody>
     @foreach (var item in Model)
     {
+        var canManageProject = !isGuest && (isAdmin || item.UserId == currentUserId);
+
         <tr>
             <td>@item.Name</td>
             <td class="col-description" title="@item.Description">
@@ -36,40 +41,41 @@
             <td>@item.EndDate.ToString("yyyy-MM-dd")</td>
             <td class="align-middle">
                 <div class="actions-container">
-                <a asp-action="Details" asp-route-id="@item.ProjectId" asp-route-returnUrl="@Context.Request.Path" class="btn btn-action btn-details"><i class="bi bi-eye"></i> Szczegóły</a>
-                @if (ViewBag.ShowManagementActions == true)
-                {
-                    @if (item.UserId == User.FindFirstValue(ClaimTypes.NameIdentifier))
-                    {
-                        <a asp-action="Edit" asp-route-id="@item.ProjectId" class="btn btn-action btn-edit"><i class="bi bi-pencil-square"></i> Edytuj</a>
-                        <form asp-action="Delete" asp-route-id="@item.ProjectId" method="post" class="d-inline">
-                                <button type="button" class="btn btn-action btn-delete"
-                                        data-bs-toggle="modal" data-bs-target="#deleteProjectModal-@item.ProjectId">
-                                    <i class="bi bi-trash"></i> Usuń
-                                </button>
+                    <a asp-action="Details" asp-route-id="@item.ProjectId" asp-route-returnUrl="@Context.Request.Path" class="btn btn-action btn-details">
+                        <i class="bi bi-eye"></i> Szczegóły
+                    </a>
 
-                                <div class="modal fade" id="deleteProjectModal-@item.ProjectId" tabindex="-1" aria-hidden="true">
-                                    <div class="modal-dialog">
-                                        <div class="modal-content bg-slate-800 text-white border border-secondary">
-                                            <div class="modal-header border-bottom border-secondary">
-                                                <h5 class="modal-title">Potwierdź usunięcie projektu</h5>
-                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                            </div>
-                                            <div class="modal-body">
-                                                Czy na pewno chcesz usunąć projekt <strong>@item.Name</strong>? Tej operacji nie można cofnąć.
-                                            </div>
-                                            <div class="modal-footer border-top border-secondary">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Anuluj</button>
-                                                <form asp-action="Delete" asp-route-id="@item.ProjectId" method="post" class="d-inline">
-                                                    <button type="submit" class="btn btn-danger">Usuń projekt</button>
-                                                </form>
-                                            </div>
-                                        </div>
+                    @if (ViewBag.ShowManagementActions == true && canManageProject)
+                    {
+                        <a asp-action="Edit" asp-route-id="@item.ProjectId" class="btn btn-action btn-edit">
+                            <i class="bi bi-pencil-square"></i> Edytuj
+                        </a>
+
+                        <button type="button" class="btn btn-action btn-delete"
+                                data-bs-toggle="modal" data-bs-target="#deleteProjectModal-@item.ProjectId">
+                            <i class="bi bi-trash"></i> Usuń
+                        </button>
+
+                        <div class="modal fade" id="deleteProjectModal-@item.ProjectId" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog">
+                                <div class="modal-content bg-slate-800 text-white border border-secondary">
+                                    <div class="modal-header border-bottom border-secondary">
+                                        <h5 class="modal-title">Potwierdź usunięcie projektu</h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        Czy na pewno chcesz usunąć projekt <strong>@item.Name</strong>? Tej operacji nie można cofnąć.
+                                    </div>
+                                    <div class="modal-footer border-top border-secondary">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Anuluj</button>
+                                        <form asp-action="Delete" asp-route-id="@item.ProjectId" method="post" class="d-inline">
+                                            <button type="submit" class="btn btn-danger">Usuń projekt</button>
+                                        </form>
                                     </div>
                                 </div>
-                        </form>
+                            </div>
+                        </div>
                     }
-                }
                 </div>
             </td>
         </tr>

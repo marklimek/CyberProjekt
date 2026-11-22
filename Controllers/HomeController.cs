@@ -11,9 +11,9 @@ namespace CyberProjekt.Controllers
 {
     public class HomeController : Controller
     {
-
         private readonly AppDbContext _context;
         private readonly ILogger<HomeController> _logger;
+
         public HomeController(ILogger<HomeController> logger, AppDbContext context)
         {
             _logger = logger;
@@ -24,12 +24,61 @@ namespace CyberProjekt.Controllers
         {
             return View();
         }
+
         [Route("Dashboard")]
         [Authorize]
         public async Task<IActionResult> Dashboard()
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var today = DateTime.Today;
+
+            if (User.IsInRole("Goœæ"))
+            {
+                var allProjects = await _context.Projects
+                    .Include(p => p.Tasks)
+                    .OrderBy(p => p.Name)
+                    .ToListAsync();
+
+                var allTasks = allProjects
+                    .SelectMany(p => p.Tasks ?? Enumerable.Empty<ProjectTask>())
+                    .Where(t => t.Status != Models.TaskStatus.Removed)
+                    .ToList();
+
+                var guestModel = new DashboardViewModel
+                {
+                    AllTasksCount = allTasks.Count,
+                    InProgressTasksCount = allTasks.Count(t => t.Status == Models.TaskStatus.InProgress),
+                    CompletedTasksCount = allTasks.Count(t => t.Status == Models.TaskStatus.Done),
+                    OverdueTasksCount = allTasks.Count(t => t.Status != Models.TaskStatus.Done && t.Deadline < today),
+
+                    ProjectNames = allProjects.Select(p => p.Name).ToList(),
+                    NewTasks = allProjects.Select(p => p.Tasks.Count(t => t.Status == Models.TaskStatus.New)).ToList(),
+                    InProgressTasks = allProjects.Select(p => p.Tasks.Count(t => t.Status == Models.TaskStatus.InProgress)).ToList(),
+                    InVerificationTasks = allProjects.Select(p => p.Tasks.Count(t => t.Status == Models.TaskStatus.InVerification)).ToList(),
+                    DoneTasks = allProjects.Select(p => p.Tasks.Count(t => t.Status == Models.TaskStatus.Done)).ToList(),
+
+                    ProjectsProgress = allProjects.Select(p =>
+                    {
+                        var validTasks = (p.Tasks ?? Enumerable.Empty<ProjectTask>())
+                            .Where(t => t.Status != Models.TaskStatus.Removed)
+                            .ToList();
+
+                        return new ProjectProgressViewModel
+                        {
+                            Name = p.Name,
+                            Progress = validTasks.Any()
+                                ? (int)((double)validTasks.Count(t => t.Status == Models.TaskStatus.Done) / validTasks.Count * 100)
+                                : 0
+                        };
+                    }).ToList(),
+
+                    UrgentTasks = new List<ProjectTask>()
+                };
+
+                ViewBag.AllProjectsForGuest = allProjects;
+                return View(guestModel);
+            }
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var myProjects = await _context.Projects
                 .Include(p => p.Tasks.Where(t => t.AssignedUserId == userId))
                 .Where(p => p.Tasks.Any(t => t.AssignedUserId == userId))
@@ -39,10 +88,6 @@ namespace CyberProjekt.Controllers
                 .Where(t => t.AssignedUserId == userId)
                 .ToListAsync();
 
-            //var projects = await _context.Projects
-            //    .Include(p => p.Tasks.Where(t => t.AssignedUserId == userId))
-            //    .ToListAsync();
-
             var model = new DashboardViewModel
             {
                 AllTasksCount = tasks.Count,
@@ -50,7 +95,6 @@ namespace CyberProjekt.Controllers
                 CompletedTasksCount = tasks.Count(t => t.Status == Models.TaskStatus.Done),
                 OverdueTasksCount = tasks.Count(t => t.Status != Models.TaskStatus.Done && t.Deadline < today),
 
-                // Dane do wykresu - tylko dla "moich" projektów
                 ProjectNames = myProjects.Select(p => p.Name).ToList(),
                 NewTasks = myProjects.Select(p => p.Tasks.Count(t => t.Status == Models.TaskStatus.New)).ToList(),
                 InProgressTasks = myProjects.Select(p => p.Tasks.Count(t => t.Status == Models.TaskStatus.InProgress)).ToList(),
@@ -58,17 +102,14 @@ namespace CyberProjekt.Controllers
                 DoneTasks = myProjects.Select(p => p.Tasks.Count(t => t.Status == Models.TaskStatus.Done)).ToList()
             };
 
-            // W Dashboard w HomeController.cs
             model.ProjectsProgress = myProjects.Select(p => new ProjectProgressViewModel
             {
                 Name = p.Name,
-                // Procent ukoñczenia zadañ u¿ytkownika w danym projekcie
                 Progress = p.Tasks.Any()
-            ? (int)((double)p.Tasks.Count(t => t.Status == Models.TaskStatus.Done) / p.Tasks.Count * 100)
-            : 0
+                    ? (int)((double)p.Tasks.Count(t => t.Status == Models.TaskStatus.Done) / p.Tasks.Count * 100)
+                    : 0
             }).ToList();
 
-            // 4. Najpilniejsze zadania
             model.UrgentTasks = await _context.Tasks
                 .Include(t => t.Project)
                 .Where(t => t.AssignedUserId == userId && t.Status != Models.TaskStatus.Done)
@@ -87,7 +128,7 @@ namespace CyberProjekt.Controllers
 
         public IActionResult RedirectHome()
         {
-            if (User.Identity.IsAuthenticated)
+            if (User.Identity?.IsAuthenticated == true)
             {
                 return RedirectToAction("Dashboard", "Home");
             }

@@ -2,6 +2,17 @@
     ViewData["Title"] = "Task Manager – System Zarządzania Zadaniami";
 }
 
+@if (Context.Request.Query["expired"] == "1")
+{
+    <div class="container mt-3">
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <i class="bi bi-clock-history me-2"></i>
+            <strong>Sesja wygasła:</strong> zostałeś automatycznie wylogowany z powodu bezczynności. Zaloguj się ponownie, aby kontynuować.
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    </div>
+}
+
 <section class="tm-hero text-center">
     <div class="container">
         <h1 class="text-white">System Zarządzania Zadaniami</h1>
@@ -50,4 +61,4 @@
             </div>
         </div>
     </div>
-</section> 
+</section>

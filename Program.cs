@@ -1,9 +1,9 @@
 using CyberProjekt.Data;
 using CyberProjekt.Models;
 using CyberProjekt.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using System;
 
 namespace CyberProjekt
 {
@@ -39,10 +39,57 @@ namespace CyberProjekt
 
             builder.Services.ConfigureApplicationCookie(options =>
             {
-                options.LoginPath = "/Account/Login";
+                options.LoginPath = "/Home/Index";
                 options.AccessDeniedPath = "/Account/AccessDenied";
-                options.ExpireTimeSpan = TimeSpan.FromMinutes(15); // domena/polityka bezczynnoœci sesji
                 options.SlidingExpiration = true;
+
+                options.Events.OnSigningIn = async context =>
+                {
+                    var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                    var policy = await db.SecurityPolicies.FirstOrDefaultAsync();
+                    var timeoutMinutes = policy?.SessionIdleTimeoutMinutes ?? 15;
+
+                    context.Properties.Items["LastActivityUtc"] = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+                    context.Properties.ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(timeoutMinutes);
+                };
+
+                options.Events.OnValidatePrincipal = async context =>
+                {
+                    if (context.Properties.Items.TryGetValue("LastActivityUtc", out var lastActivityStr) &&
+                        long.TryParse(lastActivityStr, out var lastActivityUnix))
+                    {
+                        var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                        var policy = await db.SecurityPolicies.FirstOrDefaultAsync();
+                        var timeoutMinutes = policy?.SessionIdleTimeoutMinutes ?? 15;
+
+                        var lastActivity = DateTimeOffset.FromUnixTimeSeconds(lastActivityUnix);
+                        if (DateTimeOffset.UtcNow - lastActivity > TimeSpan.FromMinutes(timeoutMinutes))
+                        {
+                            context.RejectPrincipal();
+                            context.HttpContext.Items["SessionExpired"] = true;
+                            context.HttpContext.Session.Clear();
+                            context.HttpContext.Response.Cookies.Delete(".AspNetCore.Session");
+                            await context.HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
+                            return;
+                        }
+
+                        context.Properties.Items["LastActivityUtc"] = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+                        context.Properties.ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(timeoutMinutes);
+                        context.ShouldRenew = true;
+                    }
+                };
+
+                options.Events.OnRedirectToLogin = context =>
+                {
+                    var redirectUri = context.RedirectUri;
+                    if (context.HttpContext.Items.ContainsKey("SessionExpired") &&
+                        !redirectUri.Contains("expired=1", StringComparison.OrdinalIgnoreCase))
+                    {
+                        redirectUri += redirectUri.Contains('?') ? "&expired=1" : "?expired=1";
+                    }
+                    context.Response.Redirect(redirectUri);
+                    return Task.CompletedTask;
+                };
             });
 
             builder.Services.AddSession(options =>
@@ -53,7 +100,7 @@ namespace CyberProjekt
             });
 
             builder.Services.AddControllersWithViews();
-            builder.Services.AddScoped<CyberProjekt.Services.PasswordSecurityService>();
+            builder.Services.AddScoped<PasswordSecurityService>();
 
             var app = builder.Build();
 

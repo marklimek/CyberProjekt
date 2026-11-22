@@ -1,9 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using CyberProjekt.Data;
+﻿using CyberProjekt.Data;
 using CyberProjekt.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace CyberProjekt.Controllers
 {
+    [Authorize(Roles = "Administrator,Pracownik")]
     public class AttachmentController : Controller
     {
         private readonly AppDbContext _context;
@@ -15,20 +17,16 @@ namespace CyberProjekt.Controllers
         {
             if (newAttachment != null && newAttachment.Length > 0)
             {
-                // 1. Zdefiniuj ścieżkę do folderu
                 var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
 
-                // 2. SPRAWDŹ I UTWÓRZ FOLDER, jeśli nie istnieje
                 if (!Directory.Exists(uploadsFolder))
                 {
                     Directory.CreateDirectory(uploadsFolder);
                 }
 
-                // 3. Połącz ścieżkę folderu z nazwą pliku
                 var fileName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(newAttachment.FileName);
                 var filePath = Path.Combine(uploadsFolder, fileName);
 
-                // 4. Teraz zapis pliku zadziała
                 using (var stream = new FileStream(filePath, FileMode.Create))
                 {
                     await newAttachment.CopyToAsync(stream);
@@ -38,7 +36,7 @@ namespace CyberProjekt.Controllers
                 {
                     CommentId = commentId,
                     FileName = newAttachment.FileName,
-                    FilePath = "/uploads/" + fileName // Zapisz ścieżkę relatywną dla przeglądarki
+                    FilePath = "/uploads/" + fileName
                 };
                 _context.Attachments.Add(attachment);
                 await _context.SaveChangesAsync();
@@ -60,7 +58,7 @@ namespace CyberProjekt.Controllers
                 if (!Directory.Exists(uploadsFolder))
                     Directory.CreateDirectory(uploadsFolder);
 
-                var fileName = Guid.NewGuid() + "_" + attachment.FileName;
+                var fileName = Guid.NewGuid() + "_" + Path.GetFileName(attachment.FileName);
                 var filePath = Path.Combine(uploadsFolder, fileName);
 
                 using (var stream = new FileStream(filePath, FileMode.Create))
@@ -83,6 +81,5 @@ namespace CyberProjekt.Controllers
                 "ProjectTask",
                 new { id = taskId });
         }
-
     }
 }

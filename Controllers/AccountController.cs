@@ -56,7 +56,6 @@ namespace CyberProjekt.Controllers
 
             if (!passwordValid)
             {
-                // Sprawdzenie 8-cyfrowego hasła jednorazowego (ważnego 1 h)
                 if (_passwordService.VerifyOneTimeCode(user, model.Password))
                 {
                     loggedInWithOneTimeCode = true;
@@ -73,7 +72,6 @@ namespace CyberProjekt.Controllers
 
             await RefreshUserClaimsAndSignInAsync(user);
 
-            // Sprawdzenie wymuszonej zmiany hasła lub wygaśnięcia hasła
             var policy = await GetSecurityPolicyAsync();
             bool passwordExpired = (DateTime.UtcNow - user.PasswordChangedAt).TotalDays >= policy.PasswordMaxAgeDays;
 
@@ -116,7 +114,6 @@ namespace CyberProjekt.Controllers
             if (!ModelState.IsValid)
                 return View(model);
 
-            // Przy zwykłej zmianie wymagane jest podanie starego hasła
             if (!user.MustChangePassword)
             {
                 if (string.IsNullOrEmpty(model.CurrentPassword) ||
@@ -127,7 +124,6 @@ namespace CyberProjekt.Controllers
                 }
             }
 
-            // Walidacja polityki Wariantu 8 (min. długość + entropia >= 60 bitów)
             var validation = _passwordService.ValidatePassword(model.NewPassword, policy);
             if (!validation.IsValid)
             {
@@ -138,7 +134,6 @@ namespace CyberProjekt.Controllers
                 return View(model);
             }
 
-            // Sprawdzenie historii haseł (nowe musi różnić się od poprzednich)
             var histories = await _context.PasswordHistories
                 .Where(h => h.UserId == user.Id)
                 .ToListAsync();
@@ -149,7 +144,6 @@ namespace CyberProjekt.Controllers
                 return View(model);
             }
 
-            // Zapis nowego hasła
             var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
             var changeResult = await _userManager.ResetPasswordAsync(user, resetToken, model.NewPassword);
 
@@ -184,10 +178,17 @@ namespace CyberProjekt.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Logout()
+        public async Task<IActionResult> Logout(bool expired = false)
         {
             HttpContext.Session.Clear();
+            Response.Cookies.Delete(".AspNetCore.Session");
             await _signInManager.SignOutAsync();
+
+            if (expired)
+            {
+                return RedirectToAction("Index", "Home", new { expired = 1 });
+            }
+
             return RedirectToAction("Index", "Home");
         }
 
@@ -220,6 +221,15 @@ namespace CyberProjekt.Controllers
             });
 
             await _signInManager.SignInAsync(user, isPersistent: false);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ExpiredLogout()
+        {
+            HttpContext.Session.Clear();
+            Response.Cookies.Delete(".AspNetCore.Session");
+            await _signInManager.SignOutAsync();
+            return RedirectToAction("Index", "Home", new { expired = 1 });
         }
     }
 }

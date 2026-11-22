@@ -2,10 +2,17 @@
 
 @{
     ViewData["Title"] = "Wszystkie zadania";
+    var canCreateTask = User.IsInRole("Administrator") || User.IsInRole("Pracownik");
 }
 
 <div class="container mt-5">
-    <h2 class="text-white mb-4">Wszystkie zadania</h2>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-white mb-0">Wszystkie zadania</h2>
+        @if (canCreateTask)
+        {
+            <a asp-controller="ProjectTask" asp-action="Create" class="btn btn-primary">+ Dodaj zadanie</a>
+        }
+    </div>
 
     @{
         ViewData["ActionName"] = "Index";
@@ -45,7 +52,6 @@
                     <tr>
                         <td class="ps-4">
                             <div class="d-flex align-items-center">
-                                @* Pasek akcentu w kolorze statusu *@
                                 <div style="width: 4px; height: 24px; background: @statusColor;" class="me-3 rounded"></div>
                                 <span class="text-white fw-bold">@task.Title</span>
                             </div>
@@ -62,8 +68,7 @@
                             }
                         </td>
                         <td>
-                            @* Status jako badge *@
-                            <span class="badge" style="background: @(statusColor + "20");  border: 1px solid @statusColor;">
+                            <span class="badge" style="background: @(statusColor + "20"); border: 1px solid @statusColor;">
                                 @TaskHelpers.GetDisplayName(task.Status)
                             </span>
                         </td>
@@ -80,8 +85,15 @@
     {
         <div class="card p-4 mt-4 text-center">
             <h4 class="text-white">Brak zadań</h4>
-            <p class="text-muted">W systemie nie ma jeszcze żadnych zadań.</p>
-            <a asp-controller="ProjectTask" asp-action="Create" class="btn btn-primary w-auto mx-auto">Dodaj pierwsze zadanie</a>
+            @if (canCreateTask)
+            {
+                <p class="text-muted">W systemie nie ma jeszcze żadnych zadań.</p>
+                <a asp-controller="ProjectTask" asp-action="Create" class="btn btn-primary w-auto mx-auto">Dodaj pierwsze zadanie</a>
+            }
+            else
+            {
+                <p class="text-muted mb-0">Brak dostępnych zadań do wyświetlenia.</p>
+            }
         </div>
     }
 </div>

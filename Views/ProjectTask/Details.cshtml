@@ -4,119 +4,141 @@
 
 @{
     ViewData["Title"] = "Szczegóły zadania";
-    string returnUrl = Context.Request.Headers["Referer"].ToString();
+    var queryReturnUrl = Context.Request.Query["returnUrl"].ToString();
+    var refererUrl = Context.Request.Headers["Referer"].ToString();
+    var currentUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
+
+    string backUrl;
+    if (!string.IsNullOrWhiteSpace(queryReturnUrl) && Url.IsLocalUrl(queryReturnUrl))
+    {
+        backUrl = queryReturnUrl;
+    }
+    else if (!string.IsNullOrWhiteSpace(refererUrl) &&
+             Uri.TryCreate(refererUrl, UriKind.Absolute, out var refUri) &&
+             string.Equals(refUri.Authority, Context.Request.Host.Value, StringComparison.OrdinalIgnoreCase) &&
+             !string.Equals(refUri.PathAndQuery, currentUrl, StringComparison.OrdinalIgnoreCase) &&
+             !string.Equals(refUri.AbsolutePath, Context.Request.Path, StringComparison.OrdinalIgnoreCase))
+    {
+        backUrl = refUri.PathAndQuery;
+    }
+    else
+    {
+        backUrl = Url.Action("Index", "ProjectTask") ?? "/ProjectTask";
+    }
+
+    var isGuest = User.IsInRole("Gość");
 }
 
 <div class="container mt-4">
-    <!-- Górny pasek z przyciskiem powrotu -->
     <div class="d-flex justify-content-between align-items-start mb-4">
         <h2 class="text-white">Szczegóły zadania</h2>
-        <a href="@(string.IsNullOrEmpty(returnUrl) ? Url.Action("Index", "ProjectTask") : returnUrl)"
-           class="btn btn-outline-secondary">
+        <a href="@backUrl" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Powrót
         </a>
     </div>
 
     <!-- Główna karta zadania -->
-  <div id="task-edit-container">
-    @{ ViewData["ShowHistoryButton"] = true; }
-    <partial name="_EditTaskForm" model="Model" view-data="ViewData" />
+    <div id="task-edit-container">
+        @{ ViewData["ShowHistoryButton"] = true; }
+        <partial name="_EditTaskForm" model="Model" view-data="ViewData" />
 
-    <div class="modal fade" id="attachmentModal" tabindex="-1">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content bg-dark">
-                <div class="modal-header border-0">
-                    <button type="button"
-                            class="btn-close btn-close-white"
-                            data-bs-dismiss="modal"></button>
-                </div>
+        @if (!isGuest)
+        {
+            <div class="modal fade" id="attachmentModal" tabindex="-1">
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content bg-dark">
+                        <div class="modal-header border-0">
+                            <button type="button"
+                                    class="btn-close btn-close-white"
+                                    data-bs-dismiss="modal"></button>
+                        </div>
 
-                <div class="modal-body p-0" style="height:80vh;">
-                    <iframe id="attachmentFrame"
-                            width="100%"
-                            height="100%"
-                            style="border:none;">
-                    </iframe>
+                        <div class="modal-body p-0" style="height:80vh;">
+                            <iframe id="attachmentFrame"
+                                    width="100%"
+                                    height="100%"
+                                    style="border:none;">
+                            </iframe>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
+
+            <div class="modal fade" id="editTaskModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content bg-dark text-white">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Edycja zadania</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body" id="editTaskModalBody">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
     </div>
-</div>
-<div class="modal fade" id="editTaskModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content bg-dark text-white">
-            <div class="modal-header">
-                <h5 class="modal-title">Edycja zadania</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="editTaskModalBody">
-            </div>
-        </div>
-    </div>
-</div>
-<!-- Historia zadania -->
-<div class="modal fade" id="historyModal" tabindex="-1">
-    <div class="modal-dialog modal-lg"> <!-- modal-lg dla większej czytelności -->
-        <div class="modal-content bg-dark text-white">
-            <div class="modal-header border-secondary">
-                <h5 class="modal-title">Historia i aktywność</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-               @foreach (var act in Model.Activities)
-                {
-                    <div class="p-2 border-bottom border-secondary">
-                        <div class="small text-muted">@act.Date.ToString("dd.MM.yyyy HH:mm")</div>
-                        <div>
-                            @if (act.IsComment)
-                            {
-                                <strong>@act.Author</strong> <span>napisał(a):</span>
-                                <p class="text-light mt-1 mb-0"><em>"@act.Description"</em></p>
-                            }
-                            else
-                            {
-                                <strong>@act.Author</strong> <span class="text-warning">@act.Description</span>
-                                @if (!string.IsNullOrEmpty(act.OldValue) || !string.IsNullOrEmpty(act.NewValue))
+
+    <!-- Historia zadania -->
+    <div class="modal fade" id="historyModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title">Historia i aktywność</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    @foreach (var act in Model.Activities)
+                    {
+                        <div class="p-2 border-bottom border-secondary">
+                            <div class="small text-muted">@act.Date.ToString("dd.MM.yyyy HH:mm")</div>
+                            <div>
+                                @if (act.IsComment)
                                 {
-                                    <span class="text-info d-block small">
-                                        @if (act.Description.Contains("status", StringComparison.OrdinalIgnoreCase))
-                                        {
-                                            if (Enum.TryParse<CyberProjekt.Models.TaskStatus>(act.OldValue, out var oldStatus) &&
-                                                Enum.TryParse<CyberProjekt.Models.TaskStatus>(act.NewValue, out var newStatus))
+                                    <strong>@act.Author</strong> <span>napisał(a):</span>
+                                    <p class="text-light mt-1 mb-0"><em>"@act.Description"</em></p>
+                                }
+                                else
+                                {
+                                    <strong>@act.Author</strong> <span class="text-warning">@act.Description</span>
+                                    @if (!string.IsNullOrEmpty(act.OldValue) || !string.IsNullOrEmpty(act.NewValue))
+                                    {
+                                        <span class="text-info d-block small">
+                                            @if (act.Description.Contains("status", StringComparison.OrdinalIgnoreCase))
                                             {
-                                                @TaskHelpers.GetDisplayName(oldStatus) <span>&rarr;</span> @TaskHelpers.GetDisplayName(newStatus)
+                                                if (Enum.TryParse<CyberProjekt.Models.TaskStatus>(act.OldValue, out var oldStatus) &&
+                                                    Enum.TryParse<CyberProjekt.Models.TaskStatus>(act.NewValue, out var newStatus))
+                                                {
+                                                    @TaskHelpers.GetDisplayName(oldStatus) <span>&rarr;</span> @TaskHelpers.GetDisplayName(newStatus)
+                                                }
+                                                else
+                                                {
+                                                    @act.OldValue <span>&rarr;</span> @act.NewValue
+                                                }
+                                            }
+                                            else if (act.Description.Contains("przypis", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                var usersDict = ViewBag.UsersDictionary as Dictionary<string, string> ?? new Dictionary<string, string>();
+
+                                                string oldUserDisplay = !string.IsNullOrEmpty(act.OldValue) && usersDict.TryGetValue(act.OldValue, out var oldName) ? oldName : "Brak";
+                                                string newUserDisplay = !string.IsNullOrEmpty(act.NewValue) && usersDict.TryGetValue(act.NewValue, out var newName) ? newName : "Brak";
+
+                                                if (act.OldValue == "Brak" || string.IsNullOrEmpty(act.OldValue)) oldUserDisplay = "Brak";
+                                                if (act.NewValue == "Brak" || string.IsNullOrEmpty(act.NewValue)) newUserDisplay = "Brak";
+
+                                                @oldUserDisplay <span>&rarr;</span> @newUserDisplay
                                             }
                                             else
                                             {
-                                                @act.OldValue <span>&rarr;</span> @act.NewValue
+                                                @(string.IsNullOrEmpty(act.OldValue) ? "Brak" : act.OldValue) <span>&rarr;</span> @(string.IsNullOrEmpty(act.NewValue) ? "Brak" : act.NewValue)
                                             }
-                                        }
-                                        else if (act.Description.Contains("przypis", StringComparison.OrdinalIgnoreCase))
-                                        {
-                                            // Pobieramy słownik użytkowników z ViewBag
-                                            var usersDict = ViewBag.UsersDictionary as Dictionary<string, string> ?? new Dictionary<string, string>();
-                            
-                                            // Próba odczytania nazwy dla starej i nowej wartości
-                                            string oldUserDisplay = !string.IsNullOrEmpty(act.OldValue) && usersDict.TryGetValue(act.OldValue, out var oldName) ? oldName : "Brak";
-                                            string newUserDisplay = !string.IsNullOrEmpty(act.NewValue) && usersDict.TryGetValue(act.NewValue, out var newName) ? newName : "Brak";
-
-                                            // Zabezpieczenie na wypadek, gdyby stara wartość była tekstem "Brak" lub pusta
-                                            if (act.OldValue == "Brak" || string.IsNullOrEmpty(act.OldValue)) oldUserDisplay = "Brak";
-                                            if (act.NewValue == "Brak" || string.IsNullOrEmpty(act.NewValue)) newUserDisplay = "Brak";
-
-                                            @oldUserDisplay <span>&rarr;</span> @newUserDisplay
-                                        }
-                                        else
-                                        {
-                                            // Dla wszystkich innych pól (Tytuł, Termin) po prostu wypisujemy tekst
-                                            @(string.IsNullOrEmpty(act.OldValue) ? "Brak" : act.OldValue) <span>&rarr;</span> @(string.IsNullOrEmpty(act.NewValue) ? "Brak" : act.NewValue)
-                                        }
-                                    </span>
+                                        </span>
+                                    }
                                 }
-                            }
+                            </div>
                         </div>
-                    </div>
-                }
+                    }
+                </div>
             </div>
         </div>
     </div>

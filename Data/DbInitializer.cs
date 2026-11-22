@@ -1,4 +1,5 @@
-﻿using CyberProjekt.Data;
+﻿using System.Security.Claims;
+using CyberProjekt.Data;
 using CyberProjekt.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -54,15 +55,22 @@ namespace CyberProjekt.Data
                 if ((await userManager.CreateAsync(adminUser, adminPass)).Succeeded)
                 {
                     await userManager.AddToRoleAsync(adminUser, "Administrator");
+                    await EnsureNameClaimsAsync(userManager, adminUser);
                     context.PasswordHistories.Add(new PasswordHistory
                     {
                         UserId = adminUser.Id,
-                        PasswordHash = adminUser.PasswordHash ?? string.Empty
+                        PasswordHash = adminUser.PasswordHash ?? string.Empty,
+                        CreatedAt = DateTime.UtcNow
                     });
                     await context.SaveChangesAsync();
                 }
             }
+            else
+            {
+                await EnsureNameClaimsAsync(userManager, adminUser);
+            }
 
+            // 9 użytkowników testowych dla Wariantu 8 (Administrator, Pracownik, Gość)
             var testUsers = new[]
             {
                 ("admin.test1", "admin1@local.test", "Piotr", "Zieliński", "Administrator", true, false),
@@ -79,7 +87,12 @@ namespace CyberProjekt.Data
             const string testPass = "12345678";
             foreach (var (login, email, first, last, role, mustChange, blocked) in testUsers)
             {
-                if (await userManager.FindByNameAsync(login) != null) continue;
+                var existingUser = await userManager.FindByNameAsync(login);
+                if (existingUser != null)
+                {
+                    await EnsureNameClaimsAsync(userManager, existingUser);
+                    continue;
+                }
 
                 var user = new User
                 {
@@ -96,10 +109,12 @@ namespace CyberProjekt.Data
                 if ((await userManager.CreateAsync(user, testPass)).Succeeded)
                 {
                     await userManager.AddToRoleAsync(user, role);
+                    await EnsureNameClaimsAsync(userManager, user);
                     context.PasswordHistories.Add(new PasswordHistory
                     {
                         UserId = user.Id,
-                        PasswordHash = user.PasswordHash ?? string.Empty
+                        PasswordHash = user.PasswordHash ?? string.Empty,
+                        CreatedAt = DateTime.UtcNow
                     });
                 }
             }
@@ -108,10 +123,15 @@ namespace CyberProjekt.Data
 
             if (await context.Projects.AnyAsync()) return;
 
-            var users = await context.Users.ToListAsync();
-            if (!users.Any()) return;
+            var allUsers = await context.Users.Where(u => u.Email != "unknown@system.local").ToListAsync();
+            if (!allUsers.Any()) return;
 
-            var owner = adminUser ?? users.First();
+            var guestUsers = await userManager.GetUsersInRoleAsync("Gość");
+            var guestIds = guestUsers.Select(g => g.Id).ToHashSet();
+            var assignableUsers = allUsers.Where(u => !guestIds.Contains(u.Id)).ToList();
+            if (!assignableUsers.Any()) assignableUsers = allUsers;
+
+            var owner = adminUser ?? assignableUsers.First();
             var random = new Random();
             var projectNames = new[]
             {
@@ -143,7 +163,7 @@ namespace CyberProjekt.Data
                         Deadline = DateTime.Now.AddDays(random.Next(1, 30)),
                         ProjectId = project.ProjectId,
                         CreatorId = owner.Id,
-                        AssignedUserId = users[random.Next(0, users.Count)].Id
+                        AssignedUserId = assignableUsers[random.Next(0, assignableUsers.Count)].Id
                     };
                     context.Tasks.Add(task);
                     await context.SaveChangesAsync();
@@ -154,13 +174,26 @@ namespace CyberProjekt.Data
                         {
                             Content = "Przykładowy komentarz do zadania.",
                             TaskId = task.TaskId,
-                            UserId = users[random.Next(0, users.Count)].Id
+                            UserId = allUsers[random.Next(0, allUsers.Count)].Id
                         });
                     }
                 }
             }
 
             await context.SaveChangesAsync();
+        }
+
+        private static async Task EnsureNameClaimsAsync(UserManager<User> userManager, User user)
+        {
+            var claims = await userManager.GetClaimsAsync(user);
+            if (!claims.Any(c => c.Type == "FirstName"))
+            {
+                await userManager.AddClaimAsync(user, new Claim("FirstName", user.FirstName));
+            }
+            if (!claims.Any(c => c.Type == "LastName"))
+            {
+                await userManager.AddClaimAsync(user, new Claim("LastName", user.LastName));
+            }
         }
     }
 }
